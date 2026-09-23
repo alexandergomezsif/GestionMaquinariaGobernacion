@@ -161,6 +161,52 @@ window.AppHelpers = {
     else if (name.includes('motoniveladora') || name.includes('niveladora')) src = 'img/icon-motoniveladora.png';
     else if (name.includes('vibrocompactador') || name.includes('compactador') || name.includes('rodillo')) src = 'img/icon-vibrocompactador.png';
     
-    return `<img src="${src}" style="${style}" title="${window.AppHelpers.escapeHTML(equipmentName)}" alt="icon">`;
+    return `<img src="${src}" style="${style}" title="${this.escapeHTML(equipmentName)}" alt="${this.escapeHTML(equipmentName)}">`;
+  },
+
+  /**
+   * Centraliza la clasificación del propietario de un equipo (GOB / RNT / ALQ)
+   * siguiendo el estándar DRY y asegurando coherencia en todos los módulos.
+   */
+  getEquipmentOwnerInfo(owner = '') {
+    const o = String(owner || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    if (o.includes('gobernaci') || o.includes('propio') || o === 'gob') {
+      return {
+        key: 'GOB',
+        label: 'Gobernación',
+        tagClass: 'tag-gob',
+        color: 'var(--primary-green, #16a34a)',
+        hexColor: '#16a34a',
+        badgeClass: 'badge-success',
+        isGob: true,
+        isRentan: false,
+        isAlquilado: false
+      };
+    }
+    if (o.includes('rentan') || o === 'rnt') {
+      return {
+        key: 'RNT',
+        label: 'Rentan',
+        tagClass: 'tag-rentan',
+        color: 'var(--status-info, #0284c7)',
+        hexColor: '#0284c7',
+        badgeClass: 'badge-info',
+        isGob: false,
+        isRentan: true,
+        isAlquilado: false
+      };
+    }
+    return {
+      key: 'ALQ',
+      label: 'Alquilado',
+      tagClass: 'tag-alq',
+      color: '#f59e0b',
+      hexColor: '#f59e0b',
+      badgeClass: 'badge-warning',
+      isGob: false,
+      isRentan: false,
+      isAlquilado: true
+    };
   }
 };
+

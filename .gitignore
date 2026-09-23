@@ -1,0 +1,7 @@
+Backup/
+Manual web/
+FentesActivos/
+HOJAS DE VIDA SIF 621/
+*.zip
+__pycache__/
+*.pyc

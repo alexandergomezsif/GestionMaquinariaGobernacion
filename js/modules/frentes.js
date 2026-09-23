@@ -345,10 +345,69 @@ window.AppModules = window.AppModules || {};
       alert("Función de creación manual en desarrollo. Usa la importación CSV por ahora.");
     });
 
-    // CSV Import handling
+    // CSV / Excel Import handling with pre-import verification modal
     document.getElementById('btn-import-csv').addEventListener('click', () => {
-      document.getElementById('file-import-csv').click();
+      openImportInstructionModal();
     });
+
+    function openImportInstructionModal() {
+      const modalHTML = `
+        <div class="modal-overlay active" id="modal-import-instructions">
+          <div class="modal-content" style="max-width: 540px; background: white;">
+            <div class="modal-header">
+              <div class="modal-title" style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:1.3rem;">📋</span> Recomendaciones previas a la Importación
+              </div>
+              <button type="button" class="modal-close" id="modal-close-import">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.25rem;">
+              <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px; border-radius: 4px; margin-bottom: 1.25rem;">
+                <strong style="color: #991b1b; display: block; margin-bottom: 4px;">⚠️ Verificación Importante del Archivo:</strong>
+                <span style="color: #7f1d1d; font-size: 0.88rem;">Para evitar inconsistencias en el procesamiento de maquinaria y frentes, asegúrese de verificar en su archivo Excel (.xlsx / .csv):</span>
+              </div>
+
+              <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem; color: var(--text-primary);">
+                <li style="display: flex; align-items: flex-start; gap: 10px; background: #f8fafc; padding: 10px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                  <span style="font-size: 1.1rem; color: #dc2626;">🚫</span>
+                  <div>
+                    <strong>Eliminar columna de Señalización:</strong><br/>
+                    <span style="color: var(--text-secondary); font-size: 0.82rem;">Recuerde eliminar previamente la columna que contiene información de señalización.</span>
+                  </div>
+                </li>
+                <li style="display: flex; align-items: flex-start; gap: 10px; background: #f8fafc; padding: 10px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                  <span style="font-size: 1.1rem; color: #dc2626;">🚫</span>
+                  <div>
+                    <strong>Eliminar filas debajo de Emergencias (ZODMES y demás):</strong><br/>
+                    <span style="color: var(--text-secondary); font-size: 0.82rem;">Recuerde suprimir las filas situadas debajo de las emergencias que correspondan a ZODMES u otros conceptos no viales.</span>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="modal-footer" style="background: white; border-top: 1px solid var(--card-border); display: flex; justify-content: flex-end; gap: 10px; padding: 1rem 1.25rem;">
+              <button type="button" class="btn btn-secondary" id="btn-cancel-import">Cancelar</button>
+              <button type="button" class="btn btn-primary" id="btn-proceed-import" style="background-color: var(--status-info); border-color: var(--status-info);">
+                📂 Seleccionar y Cargar Archivo
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.insertAdjacentHTML('beforeend', modalHTML);
+      const modal = document.getElementById('modal-import-instructions');
+      const closeModal = () => modal.remove();
+
+      document.getElementById('modal-close-import').addEventListener('click', closeModal);
+      document.getElementById('btn-cancel-import').addEventListener('click', closeModal);
+      document.getElementById('btn-proceed-import').addEventListener('click', () => {
+        closeModal();
+        document.getElementById('file-import-csv').click();
+      });
+
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+      });
+    }
 
     document.getElementById('file-import-csv').addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -409,9 +468,9 @@ window.AppModules = window.AppModules || {};
 
 
   function renderFrenteCard(frente) {
-    const eqPropios = frente.equipment.filter(e => (e.owner || '').toLowerCase().includes('gobernaci') || (e.owner || '').toLowerCase().includes('propio'));
-    const eqRentan = frente.equipment.filter(e => (e.owner || '').toLowerCase().includes('rentan'));
-    const eqAlquilados = frente.equipment.filter(e => !(e.owner || '').toLowerCase().includes('gobernaci') && !(e.owner || '').toLowerCase().includes('propio') && !(e.owner || '').toLowerCase().includes('rentan'));
+    const eqPropios = frente.equipment.filter(e => window.AppHelpers.getEquipmentOwnerInfo(e.owner).isGob);
+    const eqRentan = frente.equipment.filter(e => window.AppHelpers.getEquipmentOwnerInfo(e.owner).isRentan);
+    const eqAlquilados = frente.equipment.filter(e => window.AppHelpers.getEquipmentOwnerInfo(e.owner).isAlquilado);
 
     const actType = frente.activityType || 'Emergencias Viales';
     const actIcon = actType === 'Emergencias Viales' ? 'icono-emergencias.png' : 'icono-puntos.png';
@@ -442,11 +501,11 @@ window.AppModules = window.AppModules || {};
           <!-- Badge de Actividad -->
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
             <div style="display:flex; align-items:center; background:${actColor}15; color:${actColor}; padding:2px 8px; border-radius:12px; font-weight:bold; font-size:0.75rem; text-transform:uppercase;">
-                <img src="img/${actIcon}" style="width:16px; height:16px; margin-right:6px; object-fit:contain;" alt="Icon">
-                ${actType}
+                <img src="img/${actIcon}" style="width:16px; height:16px; margin-right:6px; object-fit:contain;" alt="${window.AppHelpers.escapeHTML(actType)}">
+                ${window.AppHelpers.escapeHTML(actType)}
             </div>
             <span style="background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold;">
-              ${frente.date || window.AppHelpers.getFormattedCurrentDate()}
+              ${window.AppHelpers.escapeHTML(frente.date || window.AppHelpers.getFormattedCurrentDate())}
             </span>
           </div>
 
@@ -454,6 +513,9 @@ window.AppModules = window.AppModules || {};
             <h3 style="margin: 0; color: var(--primary-dark); font-size: 1.1rem; line-height: 1.2;">
               📍 ${window.AppHelpers.escapeHTML(frente.municipality)}
             </h3>
+          </div>
+          <div style="font-size:0.75rem; color:#64748b; margin-top:-2px; margin-bottom:8px; font-weight:600; text-transform:uppercase;">
+            🌎 Subregión: <span style="color:var(--primary-dark);">${window.AppHelpers.escapeHTML(frente.subregion || 'Desconocida')}</span>
           </div>
           <div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px; font-weight: 500;">
             ${window.AppHelpers.escapeHTML(frente.name)}
@@ -485,16 +547,10 @@ window.AppModules = window.AppModules || {};
 
           <ul style="list-style: none; padding: 0; margin: 0; display:flex; flex-direction:column; gap:6px;">
             ${frente.equipment.map(eq => {
-              const ownerLower = (eq.owner || '').toLowerCase();
-              const isGobernacion = ownerLower.includes('gobernaci') || ownerLower.includes('propio');
-              const isRentan = ownerLower.includes('rentan');
-              let tagColor = '#f59e0b';
-              let ownerInitials = 'ALQ';
-              if(isGobernacion) { tagColor = 'var(--primary-green)'; ownerInitials = 'GOB'; }
-              else if(isRentan) { tagColor = 'var(--status-info)'; ownerInitials = 'RNT'; }
+              const ownerInfo = window.AppHelpers.getEquipmentOwnerInfo(eq.owner);
 
               return `
-                <li style="display:flex; justify-content:space-between; align-items:center; background: #ffffff; padding: 6px 8px; border-radius: 4px; border-left: 3px solid ${tagColor}; border: 1px solid var(--card-border);">
+                <li style="display:flex; justify-content:space-between; align-items:center; background: #ffffff; padding: 6px 8px; border-radius: 4px; border-left: 3px solid ${ownerInfo.color}; border: 1px solid var(--card-border);">
                   <div style="display:flex; flex-direction:column; overflow:hidden;">
                     <span style="font-size: 0.75rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--primary-dark);" title="${window.AppHelpers.escapeHTML(eq.type)}">
                       ${window.AppHelpers.getEquipmentIcon(eq.type)} ${window.AppHelpers.escapeHTML(eq.type)}
@@ -502,8 +558,8 @@ window.AppModules = window.AppModules || {};
                     <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 1px;">Placa/Id: ${window.AppHelpers.escapeHTML(eq.plate || 'N/A')}</span>
                   </div>
                   <div style="display:flex; flex-direction:column; align-items:flex-end;">
-                    <span style="font-size: 0.65rem; background: ${tagColor}; color: white; padding: 2px 4px; border-radius: 3px; font-weight:bold;">
-                      ${ownerInitials}
+                    <span style="font-size: 0.65rem; background: ${ownerInfo.color}; color: white; padding: 2px 4px; border-radius: 3px; font-weight:bold;">
+                      ${ownerInfo.key}
                     </span>
                     <span style="font-size: 0.65rem; margin-top:2px; color: ${eq.status.toLowerCase().includes('operativo') ? 'var(--status-success)' : 'var(--status-danger)'};">
                       ${window.AppHelpers.escapeHTML(eq.status)}
@@ -772,11 +828,9 @@ window.AppModules = window.AppModules || {};
     frentes.forEach(f => {
       totalEquipos += f.equipment.length;
       f.equipment.forEach(eq => {
-        const ownerLower = (eq.owner || '').toLowerCase();
-        const isGob = ownerLower.includes('gobernaci') || ownerLower.includes('propio');
-        const isRen = ownerLower.includes('rentan');
-        if(isGob) totalPropios++; 
-        else if(isRen) totalRentan++;
+        const info = window.AppHelpers.getEquipmentOwnerInfo(eq.owner);
+        if (info.isGob) totalPropios++; 
+        else if (info.isRentan) totalRentan++;
         else totalAlquilados++;
       });
       
@@ -975,18 +1029,13 @@ window.AppModules = window.AppModules || {};
               </tr>`;
               
               f.equipment.forEach(eq => {
-                  const ownerLower = (eq.owner || '').toLowerCase();
-                  const isGob = ownerLower.includes('gobernaci') || ownerLower.includes('propio');
-                  const isRen = ownerLower.includes('rentan');
-                  let tagClass = 'tag-alq';
-                  if(isGob) tagClass = 'tag-gob';
-                  else if(isRen) tagClass = 'tag-rentan';
+                  const info = window.AppHelpers.getEquipmentOwnerInfo(eq.owner);
                   
                   rows += `<tr>
                     <td></td>
                     <td>${window.AppHelpers.escapeHTML(eq.type)}</td>
                     <td>${window.AppHelpers.escapeHTML(eq.plate || '-')}</td>
-                    <td><span class="tag ${tagClass}">${window.AppHelpers.escapeHTML(eq.owner)}</span></td>
+                    <td><span class="tag ${info.tagClass}">${window.AppHelpers.escapeHTML(info.label)}</span></td>
                     <td>${window.AppHelpers.escapeHTML(eq.status)}</td>
                   </tr>`;
               });
