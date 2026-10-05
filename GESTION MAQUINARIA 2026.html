@@ -5175,24 +5175,24 @@ window.AppModules = window.AppModules || {};
               <button type="button" class="modal-close" id="modal-close-import">&times;</button>
             </div>
             <div class="modal-body" style="padding: 1.25rem;">
-              <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px; border-radius: 4px; margin-bottom: 1.25rem;">
-                <strong style="color: #991b1b; display: block; margin-bottom: 4px;">⚠️ Verificación Importante del Archivo:</strong>
-                <span style="color: #7f1d1d; font-size: 0.88rem;">Para evitar inconsistencias en el procesamiento de maquinaria y frentes, asegúrese de verificar en su archivo Excel (.xlsx / .csv):</span>
+              <div style="background: #f0fdf4; border-left: 4px solid #16a34a; padding: 12px 16px; border-radius: 4px; margin-bottom: 1.25rem;">
+                <strong style="color: #166534; display: block; margin-bottom: 4px;">🚀 Motor de Detección Dinámica Inteligente:</strong>
+                <span style="color: #14532d; font-size: 0.88rem;">El sistema identifica automáticamente las columnas clave de su archivo Excel/CSV y asigna la maquinaria por propietario (Gobernación, Rentan, Alquilados).</span>
               </div>
 
               <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem; color: var(--text-primary);">
                 <li style="display: flex; align-items: flex-start; gap: 10px; background: #f8fafc; padding: 10px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                  <span style="font-size: 1.1rem; color: #dc2626;">🚫</span>
+                  <span style="font-size: 1.1rem; color: #0284c7;">ℹ️</span>
                   <div>
-                    <strong>Eliminar columna de Señalización:</strong><br/>
-                    <span style="color: var(--text-secondary); font-size: 0.82rem;">Recuerde eliminar previamente la columna que contiene información de señalización.</span>
+                    <strong>Tolerancia de Columnas y Variaciones:</strong><br/>
+                    <span style="color: var(--text-secondary); font-size: 0.82rem;">Si su archivo contiene columnas adicionales como Señalización, el motor las detectará y mantendrá intacta la asignación de equipos.</span>
                   </div>
                 </li>
                 <li style="display: flex; align-items: flex-start; gap: 10px; background: #f8fafc; padding: 10px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                  <span style="font-size: 1.1rem; color: #dc2626;">🚫</span>
+                  <span style="font-size: 1.1rem; color: #16a34a;">🛡️</span>
                   <div>
-                    <strong>Eliminar filas debajo de Emergencias (ZODMES y demás):</strong><br/>
-                    <span style="color: var(--text-secondary); font-size: 0.82rem;">Recuerde suprimir las filas situadas debajo de las emergencias que correspondan a ZODMES u otros conceptos no viales.</span>
+                    <strong>Filtrado Automático de ZODMES y Totales:</strong><br/>
+                    <span style="color: var(--text-secondary); font-size: 0.82rem;">Las filas al final del reporte (ZODMES, Disponibilidad, Stand By o Resúmenes) son ignoradas automáticamente para evitar falsos positivos o frentes fantasma.</span>
                   </div>
                 </li>
               </ul>
@@ -5240,16 +5240,30 @@ window.AppModules = window.AppModules || {};
           try {
             const workbook = XLSX.read(data, { type: 'array' });
             
-            // Find the sheet that contains actual data (look for 'MUNICIPIO' or just pick the largest one)
+            // Selección inteligente de la hoja operativa más relevante
             let targetSheetName = workbook.SheetNames[0];
-            let maxRows = 0;
+            let maxScore = -1;
             
             for (let name of workbook.SheetNames) {
                 const sheet = workbook.Sheets[name];
-                const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:A1');
+                if (!sheet || !sheet['!ref']) continue;
+                const range = XLSX.utils.decode_range(sheet['!ref']);
                 const rowCount = range.e.r - range.s.r + 1;
-                if (rowCount > maxRows) {
-                    maxRows = rowCount;
+                let score = rowCount;
+                const nameUpper = name.toUpperCase();
+                if (nameUpper.includes('FRENTE') || nameUpper.includes('EMERGENCIA') || nameUpper.includes('OPERAC') || nameUpper.includes('MAQUINARIA')) {
+                    score += 2000;
+                }
+                try {
+                    const sampleCsv = XLSX.utils.sheet_to_csv(sheet, { FS: ';', blankrows: false });
+                    const sampleUpper = sampleCsv.slice(0, 4000).toUpperCase();
+                    if (sampleUpper.includes('MUNICIPIO')) score += 1000;
+                    if (sampleUpper.includes('EQUIPO')) score += 500;
+                    if (sampleUpper.includes('GOB') || sampleUpper.includes('RENTAN')) score += 500;
+                } catch(e) {}
+
+                if (score > maxScore) {
+                    maxScore = score;
                     targetSheetName = name;
                 }
             }
@@ -5626,17 +5640,72 @@ window.AppModules = window.AppModules || {};
       return;
     }
 
+    const removeAccents = (str) => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+    // 1. Detección dinámica de la fila de categorías (GOB, RENTAN, ALQUILADOS)
     let gobIdx = -1, rentanIdx = -1, alqIdx = -1;
-    for(let i=0; i<rows[0].length; i++){
-       const h = rows[0][i].toUpperCase();
-       if(h.includes('GOB')) gobIdx = i;
-       if(h.includes('RENTAN')) rentanIdx = i;
-       if(h.includes('ALQUILADOS')) alqIdx = i;
+    let categoryRowIdx = -1;
+
+    for (let r = 0; r < Math.min(10, rows.length); r++) {
+      const rowStr = removeAccents(rows[r].join(' ').toUpperCase());
+      if (rowStr.includes('GOB') && (rowStr.includes('RENTAN') || rowStr.includes('ALQ'))) {
+        categoryRowIdx = r;
+        for (let c = 0; c < rows[r].length; c++) {
+          const cell = removeAccents((rows[r][c] || '').toUpperCase().trim());
+          if (cell.includes('GOB') && gobIdx === -1) gobIdx = c;
+          if (cell.includes('RENTAN') && rentanIdx === -1) rentanIdx = c;
+          if (cell.includes('ALQUILAD') && alqIdx === -1) alqIdx = c;
+        }
+        break;
+      }
     }
-    
-    if(gobIdx === -1) gobIdx = 11;
-    if(rentanIdx === -1) rentanIdx = 17;
-    if(alqIdx === -1) alqIdx = 23;
+
+    // 2. Detección dinámica de la fila de encabezados principales
+    let headerRowIdx = -1;
+    for (let r = 0; r < Math.min(10, rows.length); r++) {
+      const rowStr = removeAccents(rows[r].join(' ').toUpperCase());
+      if (rowStr.includes('MUNICIPIO') && (rowStr.includes('EQUIPO') || rowStr.includes('VIA') || rowStr.includes('FRENTE'))) {
+        headerRowIdx = r;
+        break;
+      }
+    }
+
+    // 3. Mapeo inteligente de índices de columnas
+    let subregionCol = 0;
+    let mpioCol = 2;
+    let frenteCol = 3;
+    let equipoCol = 7;
+    let serieCol = 8;
+    let obsCol = 9;
+    let obsValCol = 10;
+
+    if (headerRowIdx !== -1) {
+      const hRow = rows[headerRowIdx];
+      for (let c = 0; c < hRow.length; c++) {
+        const cu = removeAccents((hRow[c] || '').toUpperCase().trim());
+        if (cu.includes('SUBREGION')) subregionCol = c;
+        else if (cu.includes('MUNICIPIO')) mpioCol = c;
+        else if (cu.includes('VIA') || cu.includes('FRENTE') || cu.includes('TRAMO') || cu.includes('LOCALIZACION')) frenteCol = c;
+        else if ((cu.includes('EQUIPO') || cu.includes('MAQUINARIA')) && !cu.includes('ESTADO')) equipoCol = c;
+        else if (cu.includes('SERIE') || cu.includes('PLACA') || cu.includes('IDENTIFICACION')) serieCol = c;
+        else if (cu.includes('OBSERVA')) {
+          obsCol = c;
+          obsValCol = c + 1;
+        }
+      }
+    }
+
+    // Determinación de la columna de inicio de la matriz de maquinaria
+    const candidateCols = [gobIdx, rentanIdx, alqIdx].filter(idx => idx !== -1);
+    let firstMachineCol = 11;
+    if (candidateCols.length > 0) {
+      firstMachineCol = Math.min(...candidateCols);
+    } else {
+      firstMachineCol = Math.max(obsValCol + 1, 11);
+      gobIdx = 11;
+      rentanIdx = 17;
+      alqIdx = 23;
+    }
 
     let currentMunicipio = 'Desconocido';
     let currentSubregion = 'Desconocida';
@@ -5644,137 +5713,146 @@ window.AppModules = window.AppModules || {};
     let currentActivityType = 'Emergencias Viales';
     const data = [];
     const frenteMetadata = {};
-    
-    // Pre-scan row 0 and 1 for activity type just in case it's in A1 or A2
-    const removeAccents = (str) => str.normalize("NFD").replace(/[̀-ͯ]/g, "");
-    for(let i=0; i<Math.min(2, rows.length); i++) {
-       const r = rows[i];
-       const cA = removeAccents((r[0] || '').toUpperCase());
-       if (cA.includes('EMERGENCIAS VIALES')) currentActivityType = 'Emergencias Viales';
-       else if (cA.includes('PUNTOS CRITICOS') || cA.includes('APC')) currentActivityType = 'Atención a Puntos Críticos';
+
+    // Pre-escaneo de actividad
+    for (let i = 0; i < Math.min(3, rows.length); i++) {
+      const rStr = removeAccents(rows[i].join(' ').toUpperCase());
+      if (rStr.includes('EMERGENCIAS VIALES')) currentActivityType = 'Emergencias Viales';
+      else if (rStr.includes('PUNTOS CRITICOS') || rStr.includes('APC')) currentActivityType = 'Atención a Puntos Críticos';
     }
 
-    // Mapa de frentes previos para calcular automáticamente el incremento semanal
+    // Mapa de frentes previos para delta semanal automático
     const existingFrentes = window.AppStore.getState().frentesActivos || [];
     const previousProgressMap = {};
     existingFrentes.forEach(f => {
-       const k = (f.municipality || '').toUpperCase() + " - " + (f.name || '').toUpperCase();
-       const act = f.metadata && f.metadata.avanceActual !== undefined ? f.metadata.avanceActual : parseAvanceNum(f.metadata?.avance);
-       previousProgressMap[k] = act;
+      const k = (f.municipality || '').toUpperCase() + " - " + (f.name || '').toUpperCase();
+      const act = f.metadata && f.metadata.avanceActual !== undefined ? f.metadata.avanceActual : parseAvanceNum(f.metadata?.avance);
+      previousProgressMap[k] = act;
     });
 
-    for(let i=2; i<rows.length; i++) {
-       const row = rows[i];
-       
-       const colA = (row[0] || '').toUpperCase();
-       const colB = (row[1] || '').toUpperCase();
-       const colC = (row[2] || '').toUpperCase();
-       const colD = (row[3] || '').toUpperCase();
-       
-       const removeAccents = (str) => str.normalize("NFD").replace(/[̀-ͯ]/g, "");
-       const colANorm = removeAccents(colA);
-       const colBNorm = removeAccents(colB);
-       const colCNorm = removeAccents(colC);
-       const colDNorm = removeAccents(colD);
+    // Catálogo de normalización de maquinaria
+    const knownMachines = {
+      'RT': 'RETROEXCAVADORA',
+      'VQ DT': 'VOLQUETA DOBLETROQUE',
+      'EXC 13T': 'EXCAVADORA 13 TONELADAS',
+      'EXC 14T': 'EXCAVADORA 14 TONELADAS',
+      'EXC 20T': 'EXCAVADORA 20 TONELADAS',
+      'EXC 21T': 'EXCAVADORA 21 TONELADAS',
+      'MINI C': 'MINICARGADOR',
+      'MINI CARG': 'MINICARGADOR',
+      'VQ SENC': 'VOLQUETA SENCILLA',
+      'VQ SC': 'VOLQUETA SENCILLA',
+      'VB': 'VIBROCOMPACTADOR',
+      'VB 7T': 'VIBROCOMPACTADOR',
+      'VB 10T': 'VIBROCOMPACTADOR',
+      'BULL': 'BULLDOZER',
+      'BULLD': 'BULLDOZER',
+      'MT': 'MOTONIVELADORA',
+      'CARROTANQUE': 'CARROTANQUE',
+      'MARMITA': 'MARMITA',
+      'CARGADOR': 'CARGADOR SOBRE RUEDAS',
+      'CAMABAJA': 'CAMABAJA'
+    };
 
-       if (colANorm.includes('EMERGENCIAS VIALES') || colBNorm.includes('EMERGENCIAS VIALES') || colCNorm.includes('EMERGENCIAS VIALES') || colDNorm.includes('EMERGENCIAS VIALES')) {
-           currentActivityType = 'Emergencias Viales';
-       } else if (colANorm.includes('PUNTOS CRITICOS') || colANorm.includes('APC') || colBNorm.includes('PUNTOS CRITICOS') || colCNorm.includes('PUNTOS CRITICOS') || colDNorm.includes('PUNTOS CRITICOS')) {
-           currentActivityType = 'Atención a Puntos Críticos';
-       }
+    const invalidTokens = ['EQUIPO', 'EQUIPOS', 'MAQUINARIA', 'SUBREGION', 'MUNICIPIO', 'CTVO', 'INSPECTOR', 'OBSERVACION', 'OBSERVACIONES', 'ESTADO', 'DIAS', 'FECHA'];
 
-       const isHeaderOrSection = colANorm.includes('EMERGENCIAS') || colANorm.includes('PUNTOS CRITICOS') || colANorm.includes('APC') || colANorm.includes('SUBREGION');
-       if (!isHeaderOrSection && row[0] && row[0].trim() !== '') {
-           currentSubregion = row[0].trim();
-       }
+    const startRow = Math.max(headerRowIdx + 1, categoryRowIdx + 1, 2);
 
-       const municipio = row[2] ? row[2].trim() : '';
-       const frente = row[3] ? row[3].trim() : '';
+    for (let i = startRow; i < rows.length; i++) {
+      const row = rows[i];
+      const rowJoined = removeAccents(row.join(' ').toUpperCase());
 
-       if(municipio !== '') currentMunicipio = municipio;
-       if(frente !== '') currentFrente = frente.replace(/[\r\n]+/g, ' '); 
+      // Omitir automáticamente secciones de ZODMES, Disponibilidad, Stand By o Resúmenes
+      if (rowJoined.includes('ZODME') || rowJoined.includes('DISPONIBILIDAD') || rowJoined.includes('STAND BY') || rowJoined.includes('RESUMEN GENERAL') || rowJoined.includes('TOTALES')) {
+        continue;
+      }
 
-       const key = currentMunicipio.toUpperCase() + " - " + currentFrente.toUpperCase();
-       if(!frenteMetadata[key]) {
-          frenteMetadata[key] = { estadoVia: '', avance: '', longitud: '', km: '', activityType: currentActivityType, subregion: currentSubregion };
-       }
+      // Cambio de tipo de actividad según cabeceras intermedias
+      if (rowJoined.includes('EMERGENCIAS VIALES')) {
+        currentActivityType = 'Emergencias Viales';
+      } else if (rowJoined.includes('PUNTOS CRITICOS') || rowJoined.includes('APC')) {
+        currentActivityType = 'Atención a Puntos Críticos';
+      }
 
-       const obsKey = (row[9] || '').trim();
-       const obsVal = (row[10] || '').trim();
-       if (obsKey && obsVal) {
-           const kLower = obsKey.toLowerCase();
-           if (kLower.includes('estado via') || kLower.includes('estado vía') || kLower.includes('estado de la via')) frenteMetadata[key].estadoVia = obsVal;
-           else if (kLower.includes('avance anterior') || kLower.includes('sem anterior') || kLower.includes('semana anterior')) frenteMetadata[key].avanceAnteriorDirect = obsVal;
-           else if (kLower.includes('avance')) frenteMetadata[key].avance = obsVal;
-           else if (kLower.includes('longitud')) frenteMetadata[key].longitud = obsVal;
-           else if (kLower.includes('km de atencion') || kLower.includes('km de atención')) frenteMetadata[key].km = obsVal;
-       }
+      // Actualizar Subregión
+      if (row[subregionCol] && row[subregionCol].trim() !== '') {
+        const subNorm = removeAccents(row[subregionCol].toUpperCase().trim());
+        if (!subNorm.includes('SUBREGION') && !subNorm.includes('EMERGENCIAS') && !subNorm.includes('PUNTOS CRITICOS') && !subNorm.includes('APC')) {
+          currentSubregion = row[subregionCol].trim();
+        }
+      }
 
-       if(row.length < 8) continue; 
-       
-       const equipoRaw = row[7];
-       if(!equipoRaw || equipoRaw.replace(/[^a-zA-Z0-9 ]/g, '').trim() === '') continue; 
-       
-       let equipo = equipoRaw.trim().toUpperCase();
-       if(equipo === 'RT') equipo = 'RETROEXCAVADORA';
-       else if(equipo === 'VQ DT') equipo = 'VOLQUETA DOBLETROQUE';
-       else if(equipo === 'EXC 13T') equipo = 'EXCAVADORA 13 TONELADAS';
-       else if(equipo === 'EXC 20T') equipo = 'EXCAVADORA 20 TONELADAS';
-       else if(equipo === 'MINI C' || equipo === 'MINI CARG') equipo = 'MINICARGADOR';
-       else if(equipo === 'VQ SENC' || equipo === 'VQ SC') equipo = 'VOLQUETA SENCILLA';
-       else if(equipo === 'VB' || equipo === 'VB 7T' || equipo === 'VB 10T') equipo = 'VIBROCOMPACTADOR';
-       else if(equipo === 'BULL' || equipo === 'BULLD') equipo = 'BULLDOZER';
-       else if(equipo === 'MT') equipo = 'MOTONIVELADORA';
+      // Actualizar Municipio y Frente
+      if (row[mpioCol] && row[mpioCol].trim() !== '') {
+        currentMunicipio = row[mpioCol].trim();
+      }
+      if (row[frenteCol] && row[frenteCol].trim() !== '') {
+        currentFrente = row[frenteCol].trim().replace(/[\r\n]+/g, ' ');
+      }
 
-       const serie = row[8] && row[8].replace(/[^a-zA-Z0-9 ]/g, '').trim() !== '' ? row[8].replace(/[^a-zA-Z0-9 ]/g, '').trim() : 'N/A';
-       
-       let owner = 'Alquilado'; 
-       let count = 0;
-       
-       for(let c = 11; c < row.length; c++) {
-          const val = row[c].trim().toLowerCase();
-          const parsedInt = parseInt(val, 10);
-          
-          if(val === '1' || val === 'x' || (!isNaN(parsedInt) && parsedInt > 0)) {
-             let qty = (!isNaN(parsedInt) && parsedInt > 0) ? parsedInt : 1;
-             count += qty;
-             if (gobIdx !== -1 && rentanIdx !== -1 && c >= gobIdx && c < rentanIdx) owner = 'Gobernación';
-             else if (rentanIdx !== -1 && alqIdx !== -1 && c >= rentanIdx && c < alqIdx) owner = 'Rentan';
-             else owner = 'Alquilado';
-             
-             for(let k=0; k<qty; k++) {
-                 data.push({
-                     municipio: currentMunicipio,
-                     frente: currentFrente,
-                     tipo: equipo,
-                     placa: qty > 1 && serie !== 'N/A' ? `${serie} (${k+1})` : serie,
-                     owner: owner,
-                     status: 'Operativo'
-                 });
-             }
-             break; 
+      const key = currentMunicipio.toUpperCase() + " - " + currentFrente.toUpperCase();
+      if (!frenteMetadata[key]) {
+        frenteMetadata[key] = { estadoVia: '', avance: '', longitud: '', km: '', activityType: currentActivityType, subregion: currentSubregion };
+      }
+
+      // Extraer metadatos de la vía desde las columnas de observación
+      const obsKey = (row[obsCol] || '').trim();
+      const obsVal = (row[obsValCol] || '').trim();
+      if (obsKey && obsVal) {
+        const kLower = removeAccents(obsKey.toLowerCase());
+        if (kLower.includes('estado via') || kLower.includes('estado de la via')) frenteMetadata[key].estadoVia = obsVal;
+        else if (kLower.includes('avance anterior') || kLower.includes('sem anterior') || kLower.includes('semana anterior')) frenteMetadata[key].avanceAnteriorDirect = obsVal;
+        else if (kLower.includes('avance')) frenteMetadata[key].avance = obsVal;
+        else if (kLower.includes('longitud')) frenteMetadata[key].longitud = obsVal;
+        else if (kLower.includes('km de atencion')) frenteMetadata[key].km = obsVal;
+      }
+
+      // Validar columna de equipo
+      if (row.length <= equipoCol) continue;
+      const equipoRaw = (row[equipoCol] || '').trim().toUpperCase();
+      if (!equipoRaw || invalidTokens.includes(equipoRaw)) continue;
+      if (invalidTokens.some(tok => equipoRaw.includes(tok))) continue;
+
+      const equipo = knownMachines[equipoRaw] || equipoRaw;
+      const serie = (row[serieCol] && row[serieCol].replace(/[^a-zA-Z0-9 -]/g, '').trim() !== '') 
+        ? row[serieCol].replace(/[^a-zA-Z0-9 -]/g, '').trim() 
+        : 'N/A';
+
+      // Inspeccionar matriz de cantidades por propietario
+      for (let c = firstMachineCol; c < row.length; c++) {
+        const val = (row[c] || '').trim().toLowerCase();
+        const parsedInt = parseInt(val, 10);
+        const isMark = (val === '1' || val === 'x' || (!isNaN(parsedInt) && parsedInt > 0));
+
+        if (isMark) {
+          const qty = (!isNaN(parsedInt) && parsedInt > 0) ? parsedInt : 1;
+          let owner = 'Alquilado';
+          if (gobIdx !== -1 && rentanIdx !== -1 && c >= gobIdx && c < rentanIdx) owner = 'Gobernación';
+          else if (rentanIdx !== -1 && alqIdx !== -1 && c >= rentanIdx && c < alqIdx) owner = 'Rentan';
+          else owner = 'Alquilado';
+
+          for (let k = 0; k < qty; k++) {
+            data.push({
+              municipio: currentMunicipio,
+              frente: currentFrente,
+              tipo: equipo,
+              placa: qty > 1 && serie !== 'N/A' ? `${serie} (${k + 1})` : serie,
+              owner: owner,
+              status: 'Operativo'
+            });
           }
-       }
-       
-       if (count === 0) {
-           data.push({
-               municipio: currentMunicipio,
-               frente: currentFrente,
-               tipo: equipo,
-               placa: serie,
-               owner: 'Alquilado',
-               status: 'Operativo'
-           });
-       }
+          break; // Cada fila representa la asignación del equipo actual
+        }
+      }
+      // Se eliminó la creación forzada de equipos cuando count === 0 para evitar equipos fantasma
     }
 
-    if(data.length === 0) {
-      // Debug mode: show what the parser saw
-      let debugStr = "No se detectaron equipos.\nEstructura leída:\n";
-      for(let d=0; d<Math.min(5, rows.length); d++) {
-         debugStr += `Fila ${d}: [${rows[d][7] || 'Vacio'}] Cols:${rows[d].length}\n`;
+    if (data.length === 0) {
+      let debugStr = "No se detectaron equipos operativos en la matriz.\nEstructura analizada:\n";
+      for (let d = 0; d < Math.min(5, rows.length); d++) {
+        debugStr += `Fila ${d}: [${rows[d][equipoCol] || 'Vacio'}] Cols: ${rows[d].length}\n`;
       }
-      alert(debugStr + "\nPor favor asegúrate de que la columna H (8va columna) contenga el tipo de equipo, y que las cantidades estén desde la columna L (12va columna) en adelante.");
+      alert(debugStr + "\nPor favor verifique que la hoja seleccionada contenga los encabezados de Municipio, Frente, Equipo y las marcas (1 o X) en las columnas de maquinaria.");
       return;
     }
 
@@ -5817,14 +5895,30 @@ window.AppModules = window.AppModules || {};
 
     const frentesActivos = Object.values(grouped);
     
-    if (confirm("Se han detectado " + frentesActivos.length + " frentes activos y " + data.length + " equipos. ¿Deseas reemplazar la base de datos actual?")) {
+    // Contabilizar equipos por propietario para resumen informativo
+    const gobCount = data.filter(d => d.owner === 'Gobernación').length;
+    const rentanCount = data.filter(d => d.owner === 'Rentan').length;
+    const alqCount = data.filter(d => d.owner === 'Alquilado').length;
+
+    const confirmMsg = 
+`✅ Procesamiento exitoso del archivo:
+
+• Frentes Activos detectados: ${frentesActivos.length}
+• Total Maquinaria y Equipos: ${data.length}
+   - Gobernación: ${gobCount}
+   - Rentan: ${rentanCount}
+   - Alquilados: ${alqCount}
+
+¿Deseas reemplazar la base de datos actual con estos frentes y equipos?`;
+
+    if (confirm(confirmMsg)) {
       window.AppStore.updateState('frentesActivos', frentesActivos);
       
-      // Auto-download JSON backup
+      // Descarga automática de respaldo JSON
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(frentesActivos, null, 2));
       const downloadAnchorNode = document.createElement('a');
       downloadAnchorNode.setAttribute("href", dataStr);
-      downloadAnchorNode.setAttribute("download", "frentes_activos.json");
+      downloadAnchorNode.setAttribute("download", `frentes_activos_${window.AppHelpers.getFormattedCurrentDate().replace(/[^a-zA-Z0-9]/g, '_')}.json`);
       document.body.appendChild(downloadAnchorNode);
       downloadAnchorNode.click();
       downloadAnchorNode.remove();
