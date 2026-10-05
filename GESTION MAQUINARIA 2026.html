@@ -5239,38 +5239,7 @@ window.AppModules = window.AppModules || {};
           const data = new Uint8Array(ev.target.result);
           try {
             const workbook = XLSX.read(data, { type: 'array' });
-            
-            // Selección inteligente de la hoja operativa más relevante
-            let targetSheetName = workbook.SheetNames[0];
-            let maxScore = -1;
-            
-            for (let name of workbook.SheetNames) {
-                const sheet = workbook.Sheets[name];
-                if (!sheet || !sheet['!ref']) continue;
-                const range = XLSX.utils.decode_range(sheet['!ref']);
-                const rowCount = range.e.r - range.s.r + 1;
-                let score = rowCount;
-                const nameUpper = name.toUpperCase();
-                if (nameUpper.includes('FRENTE') || nameUpper.includes('EMERGENCIA') || nameUpper.includes('OPERAC') || nameUpper.includes('MAQUINARIA')) {
-                    score += 2000;
-                }
-                try {
-                    const sampleCsv = XLSX.utils.sheet_to_csv(sheet, { FS: ';', blankrows: false });
-                    const sampleUpper = sampleCsv.slice(0, 4000).toUpperCase();
-                    if (sampleUpper.includes('MUNICIPIO')) score += 1000;
-                    if (sampleUpper.includes('EQUIPO')) score += 500;
-                    if (sampleUpper.includes('GOB') || sampleUpper.includes('RENTAN')) score += 500;
-                } catch(e) {}
-
-                if (score > maxScore) {
-                    maxScore = score;
-                    targetSheetName = name;
-                }
-            }
-            
-            const worksheet = workbook.Sheets[targetSheetName];
-            const csvText = XLSX.utils.sheet_to_csv(worksheet, { FS: ';' });
-            processCSVImport(csvText);
+            handleExcelWorkbookImport(workbook, file.name);
           } catch(err) {
             console.error(err);
             alert("Error procesando el archivo Excel. Asegúrate de que no esté corrupto.");
@@ -5288,6 +5257,161 @@ window.AppModules = window.AppModules || {};
       
       e.target.value = ''; // Reset input
     });
+
+    /**
+     * Evalúa las hojas del libro de Excel y permite al usuario elegir la semana u hoja correspondiente
+     */
+    function handleExcelWorkbookImport(workbook, fileName) {
+      const cleanFileName = (fileName || '').toUpperCase().replace(/[_\-]+/g, ' ');
+      const sheetCandidates = [];
+
+      for (let idx = 0; idx < workbook.SheetNames.length; idx++) {
+        const name = workbook.SheetNames[idx];
+        const sheet = workbook.Sheets[name];
+        if (!sheet || !sheet['!ref']) continue;
+        const range = XLSX.utils.decode_range(sheet['!ref']);
+        const rowCount = range.e.r - range.s.r + 1;
+        if (rowCount < 5) continue; // descartar hojas vacías o auxiliares
+
+        let isOperational = false;
+        let score = 0;
+
+        try {
+          const sampleCsv = XLSX.utils.sheet_to_csv(sheet, { FS: ';', blankrows: false });
+          const sampleUpper = sampleCsv.slice(0, 4000).toUpperCase();
+          const hasMpio = sampleUpper.includes('MUNICIPIO');
+          const hasEq = sampleUpper.includes('EQUIPO') || sampleUpper.includes('MAQUINARIA');
+          const hasGob = sampleUpper.includes('GOB') || sampleUpper.includes('RENTAN') || sampleUpper.includes('ALQ');
+
+          if (hasMpio && (hasEq || hasGob)) {
+            isOperational = true;
+            score = 100 + (idx * 50); // preferencia cronológica por las hojas más recientes al final del libro
+
+            const cleanSheetName = name.toUpperCase().replace(/[_\-]+/g, ' ');
+            const sheetWords = cleanSheetName.split(/\s+/).filter(w => w.length > 2);
+            const matchCount = sheetWords.filter(w => cleanFileName.includes(w)).length;
+            if (matchCount > 0) {
+              score += matchCount * 5000; // coincidencia directa con el nombre del archivo
+            }
+          }
+        } catch(e) {}
+
+        sheetCandidates.push({
+          name: name,
+          rowCount: rowCount,
+          isOperational: isOperational,
+          score: score
+        });
+      }
+
+      const operationalSheets = sheetCandidates.filter(s => s.isOperational);
+      operationalSheets.sort((a, b) => b.score - a.score);
+
+      if (operationalSheets.length === 0) {
+        // Fallback: usar la hoja con más datos
+        let largest = workbook.SheetNames[0];
+        let maxR = 0;
+        for (let n of workbook.SheetNames) {
+          const s = workbook.Sheets[n];
+          if (!s || !s['!ref']) continue;
+          const r = XLSX.utils.decode_range(s['!ref']);
+          const cnt = r.e.r - r.s.r + 1;
+          if (cnt > maxR) { maxR = cnt; largest = n; }
+        }
+        const ws = workbook.Sheets[largest];
+        const csv = XLSX.utils.sheet_to_csv(ws, { FS: ';' });
+        processCSVImport(csv);
+        return;
+      }
+
+      if (operationalSheets.length === 1) {
+        // Solo hay 1 hoja de frentes: importar directamente
+        const targetSheet = operationalSheets[0].name;
+        const ws = workbook.Sheets[targetSheet];
+        const csv = XLSX.utils.sheet_to_csv(ws, { FS: ';' });
+        processCSVImport(csv);
+        return;
+      }
+
+      // Existen múltiples semanas/hojas: mostrar modal para selección transparente
+      openSelectSheetModal(workbook, operationalSheets, fileName);
+    }
+
+    /**
+     * Modal interactivo para seleccionar la semana/hoja a procesar de un libro de Excel
+     */
+    function openSelectSheetModal(workbook, sheets, fileName) {
+      const modalId = 'modal-select-sheet';
+      const existing = document.getElementById(modalId);
+      if (existing) existing.remove();
+
+      const optionsHtml = sheets.map((s, idx) => {
+        const isRec = idx === 0;
+        return `
+          <label style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border: 2px solid ${isRec ? '#0284c7' : '#e2e8f0'}; background: ${isRec ? '#f0f9ff' : 'white'}; border-radius: 8px; cursor: pointer; transition: all 0.2s; margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <input type="radio" name="selected_sheet" value="${s.name}" ${isRec ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: #0284c7;">
+              <div>
+                <strong style="font-size: 0.95rem; color: #1e293b; display: block;">${s.name}</strong>
+                <span style="font-size: 0.8rem; color: #64748b;">${s.rowCount} filas de registro</span>
+              </div>
+            </div>
+            ${isRec ? '<span style="background: #0284c7; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">✨ Recomendada (Semana Actual)</span>' : ''}
+          </label>
+        `;
+      }).join('');
+
+      const modalHTML = `
+        <div class="modal-overlay active" id="${modalId}">
+          <div class="modal-content" style="max-width: 520px; background: white; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+            <div class="modal-header" style="border-bottom: 1px solid #e2e8f0; padding: 1.25rem;">
+              <div class="modal-title" style="display:flex; align-items:center; gap:8px; font-size: 1.15rem; font-weight: 700; color: #0f172a;">
+                <span style="font-size:1.3rem;">📑</span> Seleccionar Semana / Hoja del Archivo
+              </div>
+              <button type="button" class="modal-close" id="modal-close-sheet-select">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.25rem;">
+              <p style="font-size: 0.88rem; color: #475569; margin-top: 0; margin-bottom: 1rem;">
+                El archivo contiene reportes de varias semanas operativas. Seleccione la hoja que desea procesar:
+              </p>
+              <div style="max-height: 280px; overflow-y: auto; padding-right: 4px;">
+                ${optionsHtml}
+              </div>
+            </div>
+            <div class="modal-footer" style="background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px; padding: 1rem 1.25rem;">
+              <button type="button" class="btn btn-secondary" id="btn-cancel-sheet-select">Cancelar</button>
+              <button type="button" class="btn btn-primary" id="btn-confirm-sheet-select" style="background-color: #0284c7; border-color: #0284c7;">
+                📥 Importar Hoja Seleccionada
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.insertAdjacentHTML('beforeend', modalHTML);
+      const modal = document.getElementById(modalId);
+      const closeModal = () => modal.remove();
+
+      document.getElementById('modal-close-sheet-select').addEventListener('click', closeModal);
+      document.getElementById('btn-cancel-sheet-select').addEventListener('click', closeModal);
+      
+      document.getElementById('btn-confirm-sheet-select').addEventListener('click', () => {
+        const checked = modal.querySelector('input[name="selected_sheet"]:checked');
+        if (!checked) {
+          alert("Por favor seleccione una hoja.");
+          return;
+        }
+        const selectedName = checked.value;
+        closeModal();
+        const ws = workbook.Sheets[selectedName];
+        const csv = XLSX.utils.sheet_to_csv(ws, { FS: ';' });
+        processCSVImport(csv);
+      });
+
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+      });
+    }
 
     const btnWeeklyProgress = document.getElementById('btn-weekly-progress');
     if (btnWeeklyProgress) {
@@ -5813,18 +5937,24 @@ window.AppModules = window.AppModules || {};
       if (!equipoRaw || invalidTokens.includes(equipoRaw)) continue;
       if (invalidTokens.some(tok => equipoRaw.includes(tok))) continue;
 
-      const equipo = knownMachines[equipoRaw] || equipoRaw;
+      const isVarado = equipoRaw.includes('VARADA') || equipoRaw.includes('VARADO');
+      const eqClean = equipoRaw.replace(/VARAD[AO]/g, '').trim();
+      let equipo = knownMachines[equipoRaw] || knownMachines[eqClean] || eqClean;
+      if (isVarado && !equipo.includes('VARAD')) equipo += ' (VARADA)';
+
       const serie = (row[serieCol] && row[serieCol].replace(/[^a-zA-Z0-9 -]/g, '').trim() !== '') 
         ? row[serieCol].replace(/[^a-zA-Z0-9 -]/g, '').trim() 
         : 'N/A';
 
       // Inspeccionar matriz de cantidades por propietario
+      let foundMark = false;
       for (let c = firstMachineCol; c < row.length; c++) {
         const val = (row[c] || '').trim().toLowerCase();
         const parsedInt = parseInt(val, 10);
         const isMark = (val === '1' || val === 'x' || (!isNaN(parsedInt) && parsedInt > 0));
 
         if (isMark) {
+          foundMark = true;
           const qty = (!isNaN(parsedInt) && parsedInt > 0) ? parsedInt : 1;
           let owner = 'Alquilado';
           if (gobIdx !== -1 && rentanIdx !== -1 && c >= gobIdx && c < rentanIdx) owner = 'Gobernación';
@@ -5838,13 +5968,24 @@ window.AppModules = window.AppModules || {};
               tipo: equipo,
               placa: qty > 1 && serie !== 'N/A' ? `${serie} (${k + 1})` : serie,
               owner: owner,
-              status: 'Operativo'
+              status: isVarado ? 'Varado' : 'Operativo'
             });
           }
           break; // Cada fila representa la asignación del equipo actual
         }
       }
-      // Se eliminó la creación forzada de equipos cuando count === 0 para evitar equipos fantasma
+
+      // Si la fila tiene un equipo explícito y placa/serie válida, pero el operador omitió marcar el '1' en la matriz
+      if (!foundMark && serie !== 'N/A' && serie.length >= 3 && !invalidTokens.includes(equipoRaw)) {
+        data.push({
+          municipio: currentMunicipio,
+          frente: currentFrente,
+          tipo: equipo,
+          placa: serie,
+          owner: 'Alquilado', // Asignación por defecto cuando no se marcó en la matriz
+          status: isVarado ? 'Varado' : 'Operativo'
+        });
+      }
     }
 
     if (data.length === 0) {
@@ -5895,10 +6036,11 @@ window.AppModules = window.AppModules || {};
 
     const frentesActivos = Object.values(grouped);
     
-    // Contabilizar equipos por propietario para resumen informativo
+    // Contabilizar equipos por propietario y estado para resumen informativo
     const gobCount = data.filter(d => d.owner === 'Gobernación').length;
     const rentanCount = data.filter(d => d.owner === 'Rentan').length;
     const alqCount = data.filter(d => d.owner === 'Alquilado').length;
+    const varadosCount = data.filter(d => d.status === 'Varado').length;
 
     const confirmMsg = 
 `✅ Procesamiento exitoso del archivo:
@@ -5908,7 +6050,7 @@ window.AppModules = window.AppModules || {};
    - Gobernación: ${gobCount}
    - Rentan: ${rentanCount}
    - Alquilados: ${alqCount}
-
+${varadosCount > 0 ? `   - Equipos en Estado Varado: ${varadosCount}\n` : ''}
 ¿Deseas reemplazar la base de datos actual con estos frentes y equipos?`;
 
     if (confirm(confirmMsg)) {
