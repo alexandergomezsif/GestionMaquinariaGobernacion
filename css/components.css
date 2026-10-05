@@ -525,3 +525,50 @@
   text-shadow: none;
 }
 
+/* Badges e Indicadores de Avance Semanal */
+.badge-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.badge-delta-pos {
+  background-color: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.badge-delta-zero {
+  background-color: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+}
+
+.badge-delta-neg {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+.progress-dual {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+.progress-prev {
+  background-color: #0284c7;
+  height: 100%;
+}
+
+.progress-delta {
+  background-color: #16a34a;
+  height: 100%;
+}
+
+

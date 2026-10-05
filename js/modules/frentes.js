@@ -27,6 +27,9 @@ window.AppModules = window.AppModules || {};
             <button class="btn btn-secondary" id="btn-import-csv" style="background-color: var(--status-info); color: white; border: none;" title="Importar desde Excel">
               📥 Importar Excel (.csv, .xlsx)
             </button>
+            <button class="btn btn-secondary" id="btn-weekly-progress" style="background-color: #0284c7; color: white; border: none;" title="Gestionar y comparar avances semanales">
+              📊 Avance Semanal
+            </button>
             <button class="btn btn-secondary" id="btn-export-frentes-pdf" style="background-color: var(--primary-dark); color: white; border: none;">
               📄 Generar Informe Ejecutivo
             </button>
@@ -461,10 +464,174 @@ window.AppModules = window.AppModules || {};
       e.target.value = ''; // Reset input
     });
 
+    const btnWeeklyProgress = document.getElementById('btn-weekly-progress');
+    if (btnWeeklyProgress) {
+      btnWeeklyProgress.addEventListener('click', () => {
+        openWeeklyProgressModal(window.AppStore.getState().frentesActivos || []);
+      });
+    }
+
     document.getElementById('btn-export-frentes-pdf').addEventListener('click', () => {
       generateFrentesPDF(state.frentesActivos || []);
     });
   };
+
+  /**
+   * Extrae de forma segura el porcentaje numérico (0 - 100) de un string o valor
+   */
+  function parseAvanceNum(val) {
+    if (val === undefined || val === null) return 0;
+    if (typeof val === 'number') return Math.min(100, Math.max(0, Math.round(val)));
+    const str = String(val).trim();
+    const m = str.match(/(\d+(?:\.\d+)?)\s*%/);
+    if (m) return Math.min(100, Math.max(0, Math.round(parseFloat(m[1]))));
+    const m2 = str.match(/(\d+(?:\.\d+)?)/);
+    if (m2) {
+      const num = parseFloat(m2[1]);
+      if (num <= 100) return Math.min(100, Math.max(0, Math.round(num)));
+    }
+    return 0;
+  }
+
+  /**
+   * Modal interactivo para visualizar y ajustar avances semanales de cada frente
+   */
+  function openWeeklyProgressModal(frentes) {
+    if (!frentes || frentes.length === 0) {
+      alert("No hay frentes activos registrados. Primero importe un archivo Excel.");
+      return;
+    }
+
+    const rowsHtml = frentes.map((f, idx) => {
+      const actVal = f.metadata && f.metadata.avanceActual !== undefined ? f.metadata.avanceActual : parseAvanceNum(f.metadata?.avance);
+      const antVal = f.metadata && f.metadata.avanceAnterior !== undefined ? f.metadata.avanceAnterior : 0;
+      const delta = actVal - antVal;
+      const deltaClass = delta > 0 ? 'badge-delta-pos' : (delta < 0 ? 'badge-delta-neg' : 'badge-delta-zero');
+      const deltaSign = delta > 0 ? '+' : '';
+
+      return `
+        <tr data-index="${idx}" style="border-bottom: 1px solid var(--card-border);">
+          <td style="padding: 8px 10px; font-weight: 600; color: var(--primary-dark);">
+            📍 ${window.AppHelpers.escapeHTML(f.municipality)}
+            <div style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 400;">${window.AppHelpers.escapeHTML(f.name)}</div>
+          </td>
+          <td style="padding: 8px 10px; font-size: 0.8rem; color: #64748b;">
+            ${window.AppHelpers.escapeHTML(f.subregion || f.metadata?.subregion || 'N/E')}
+          </td>
+          <td style="padding: 8px 10px; text-align: center;">
+            <input type="number" min="0" max="100" class="form-control input-ant" data-idx="${idx}" value="${antVal}" style="width: 75px; text-align: center; display: inline-block; padding: 4px;" /> %
+          </td>
+          <td style="padding: 8px 10px; text-align: center;">
+            <input type="number" min="0" max="100" class="form-control input-act" data-idx="${idx}" value="${actVal}" style="width: 75px; text-align: center; display: inline-block; padding: 4px; font-weight: bold;" /> %
+          </td>
+          <td style="padding: 8px 10px; text-align: center;">
+            <span class="badge-delta ${deltaClass} delta-display-${idx}">${deltaSign}${delta}%</span>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    const modalHTML = `
+      <div class="modal-overlay active" id="modal-weekly-progress">
+        <div class="modal-content" style="max-width: 820px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; background: white; padding: 0;">
+          <div class="modal-header" style="background: var(--primary-dark); color: white; padding: 12px 20px; border-top-left-radius: var(--radius-lg); border-top-right-radius: var(--radius-lg);">
+            <div class="modal-title" style="display:flex; align-items:center; gap:8px; color: white;">
+              <span>📊</span> Seguimiento de Avance Semanal (Comparativa vs Semana Anterior)
+            </div>
+            <button type="button" class="modal-close" id="modal-close-weekly" style="color: white;">&times;</button>
+          </div>
+          <div class="modal-body" style="padding: 15px 20px; overflow-y: auto; flex-grow: 1;">
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0; margin-bottom: 12px;">
+              Aquí puedes revisar y ajustar el avance porcentual (%) de cada frente de obra en la semana anterior y la semana actual. El incremento semanal (Δ) se recalcula automáticamente.
+            </p>
+            <div class="table-container" style="border: 1px solid var(--card-border); border-radius: 6px; overflow-x: auto;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                  <tr style="background: #f8fafc; color: #1e293b; border-bottom: 2px solid var(--card-border); text-align: left;">
+                    <th style="padding: 10px;">Frente / Municipio</th>
+                    <th style="padding: 10px;">Subregión</th>
+                    <th style="padding: 10px; text-align: center;">Sem. Anterior</th>
+                    <th style="padding: 10px; text-align: center;">Sem. Actual</th>
+                    <th style="padding: 10px; text-align: center;">Incremento Semanal (Δ)</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-weekly-progress">
+                  ${rowsHtml}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="modal-footer" style="padding: 12px 20px; background: #f8fafc; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.8rem; color: #64748b;">Total Frentes: <strong>${frentes.length}</strong></span>
+            <div style="display: flex; gap: 10px;">
+              <button type="button" class="btn btn-secondary" id="btn-cancel-weekly">Cancelar</button>
+              <button type="button" class="btn btn-primary" id="btn-save-weekly" style="background-color: var(--primary-green); border-color: var(--primary-green);">
+                💾 Guardar Cambios de Avance
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    const modal = document.getElementById('modal-weekly-progress');
+    const closeModal = () => modal.remove();
+
+    document.getElementById('modal-close-weekly').addEventListener('click', closeModal);
+    document.getElementById('btn-cancel-weekly').addEventListener('click', closeModal);
+
+    // Live recalculation on input change
+    const updateRowDelta = (idx) => {
+      const inputAnt = modal.querySelector(`.input-ant[data-idx="${idx}"]`);
+      const inputAct = modal.querySelector(`.input-act[data-idx="${idx}"]`);
+      const badge = modal.querySelector(`.delta-display-${idx}`);
+      if (!inputAnt || !inputAct || !badge) return;
+
+      const ant = Math.min(100, Math.max(0, parseInt(inputAnt.value, 10) || 0));
+      const act = Math.min(100, Math.max(0, parseInt(inputAct.value, 10) || 0));
+      const delta = act - ant;
+
+      badge.className = `badge-delta delta-display-${idx} ${delta > 0 ? 'badge-delta-pos' : (delta < 0 ? 'badge-delta-neg' : 'badge-delta-zero')}`;
+      badge.textContent = `${delta > 0 ? '+' : ''}${delta}%`;
+    };
+
+    modal.querySelectorAll('.input-ant, .input-act').forEach(input => {
+      input.addEventListener('input', (e) => {
+        const idx = e.target.getAttribute('data-idx');
+        updateRowDelta(idx);
+      });
+    });
+
+    // Save changes into AppStore
+    document.getElementById('btn-save-weekly').addEventListener('click', () => {
+      const updatedFrentes = [...frentes];
+      updatedFrentes.forEach((f, idx) => {
+        const inputAnt = modal.querySelector(`.input-ant[data-idx="${idx}"]`);
+        const inputAct = modal.querySelector(`.input-act[data-idx="${idx}"]`);
+        if (inputAnt && inputAct) {
+          const ant = Math.min(100, Math.max(0, parseInt(inputAnt.value, 10) || 0));
+          const act = Math.min(100, Math.max(0, parseInt(inputAct.value, 10) || 0));
+          const delta = act - ant;
+          f.metadata = f.metadata || {};
+          f.metadata.avanceAnterior = ant;
+          f.metadata.avanceActual = act;
+          f.metadata.deltaSemanal = delta;
+          f.metadata.avance = `${act}%`;
+        }
+      });
+
+      window.AppStore.updateState('frentesActivos', updatedFrentes);
+      closeModal();
+      if (window.AppModules.frentesActivos) {
+        window.AppModules.frentesActivos(document.getElementById('app-main'));
+      }
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+  }
 
 
   function renderFrenteCard(frente) {
@@ -523,10 +690,35 @@ window.AppModules = window.AppModules || {};
           
           ${eqSummaryHtml}
           
-          ${frente.metadata && (frente.metadata.estadoVia || frente.metadata.avance || frente.metadata.longitud || frente.metadata.km) ? `
+          ${frente.metadata && (frente.metadata.estadoVia || frente.metadata.avance || frente.metadata.avanceActual !== undefined || frente.metadata.longitud || frente.metadata.km) ? `
           <div style="background: #f8fafc; border-radius: 4px; padding: 8px; margin-top: 8px; font-size: 0.75rem; color: var(--text-secondary);">
-            ${frente.metadata.estadoVia ? `<div style="margin-bottom:2px;"><strong>🛣️ Estado:</strong> ${window.AppHelpers.escapeHTML(frente.metadata.estadoVia)}</div>` : ''}
-            ${frente.metadata.avance ? `<div style="margin-bottom:2px;"><strong>📈 Avance:</strong> ${window.AppHelpers.escapeHTML(frente.metadata.avance)}</div>` : ''}
+            ${frente.metadata.estadoVia ? `<div style="margin-bottom:4px;"><strong>🛣️ Estado:</strong> ${window.AppHelpers.escapeHTML(frente.metadata.estadoVia)}</div>` : ''}
+            ${(() => {
+                const actVal = frente.metadata && frente.metadata.avanceActual !== undefined ? frente.metadata.avanceActual : parseAvanceNum(frente.metadata?.avance);
+                const antVal = frente.metadata && frente.metadata.avanceAnterior !== undefined ? frente.metadata.avanceAnterior : 0;
+                const deltaVal = frente.metadata && frente.metadata.deltaSemanal !== undefined ? frente.metadata.deltaSemanal : (actVal - antVal);
+                const deltaClass = deltaVal > 0 ? 'badge-delta-pos' : (deltaVal < 0 ? 'badge-delta-neg' : 'badge-delta-zero');
+                const deltaSign = deltaVal > 0 ? '+' : '';
+                return `
+                  <div style="margin-top:4px; margin-bottom:6px; background:#ffffff; border:1px solid #e2e8f0; border-radius:6px; padding:6px 8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                      <strong style="color:var(--primary-dark);">📈 Avance: <span style="font-size:0.9rem;">${actVal}%</span></strong>
+                      <span class="badge-delta ${deltaClass}">${deltaSign}${deltaVal}% sem.</span>
+                    </div>
+                    <div class="progress-container" style="height:12px; margin-bottom:3px;">
+                      <div class="progress-dual">
+                        <div class="progress-prev" style="width: ${Math.min(antVal, actVal)}%;" title="Semana Anterior: ${antVal}%"></div>
+                        <div class="progress-delta" style="width: ${Math.max(0, actVal - antVal)}%;" title="Incremento Semanal: +${deltaVal}%"></div>
+                      </div>
+                      <div class="progress-text" style="line-height:12px;">${actVal}%</div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#64748b;">
+                      <span>Sem. Anterior: <strong>${antVal}%</strong></span>
+                      <span>Variación: <strong>${deltaSign}${deltaVal}%</strong></span>
+                    </div>
+                  </div>
+                `;
+            })()}
             ${frente.metadata.longitud ? `<div style="margin-bottom:2px;"><strong>📏 Longitud:</strong> ${window.AppHelpers.escapeHTML(frente.metadata.longitud)}</div>` : ''}
             ${frente.metadata.km ? `<div><strong>📍 Km Atención:</strong> ${window.AppHelpers.escapeHTML(frente.metadata.km)}</div>` : ''}
           </div>
@@ -651,6 +843,15 @@ window.AppModules = window.AppModules || {};
        else if (cA.includes('PUNTOS CRITICOS') || cA.includes('APC')) currentActivityType = 'Atención a Puntos Críticos';
     }
 
+    // Mapa de frentes previos para calcular automáticamente el incremento semanal
+    const existingFrentes = window.AppStore.getState().frentesActivos || [];
+    const previousProgressMap = {};
+    existingFrentes.forEach(f => {
+       const k = (f.municipality || '').toUpperCase() + " - " + (f.name || '').toUpperCase();
+       const act = f.metadata && f.metadata.avanceActual !== undefined ? f.metadata.avanceActual : parseAvanceNum(f.metadata?.avance);
+       previousProgressMap[k] = act;
+    });
+
     for(let i=2; i<rows.length; i++) {
        const row = rows[i];
        
@@ -692,6 +893,7 @@ window.AppModules = window.AppModules || {};
        if (obsKey && obsVal) {
            const kLower = obsKey.toLowerCase();
            if (kLower.includes('estado via') || kLower.includes('estado vía') || kLower.includes('estado de la via')) frenteMetadata[key].estadoVia = obsVal;
+           else if (kLower.includes('avance anterior') || kLower.includes('sem anterior') || kLower.includes('semana anterior')) frenteMetadata[key].avanceAnteriorDirect = obsVal;
            else if (kLower.includes('avance')) frenteMetadata[key].avance = obsVal;
            else if (kLower.includes('longitud')) frenteMetadata[key].longitud = obsVal;
            else if (kLower.includes('km de atencion') || kLower.includes('km de atención')) frenteMetadata[key].km = obsVal;
@@ -769,12 +971,26 @@ window.AppModules = window.AppModules || {};
     data.forEach(item => {
       const key = item.municipio.toUpperCase() + " - " + item.frente.toUpperCase();
       if (!grouped[key]) {
+        const meta = frenteMetadata[key] || { estadoVia: '', avance: '', longitud: '', km: '', subregion: '' };
+        const actVal = parseAvanceNum(meta.avance);
+        let antVal = 0;
+        if (meta.avanceAnteriorDirect) {
+          antVal = parseAvanceNum(meta.avanceAnteriorDirect);
+        } else if (previousProgressMap[key] !== undefined) {
+          antVal = previousProgressMap[key];
+        }
+        const delta = actVal - antVal;
+        meta.avanceActual = actVal;
+        meta.avanceAnterior = antVal;
+        meta.deltaSemanal = delta;
+        if (!meta.avance || meta.avance === '') meta.avance = `${actVal}%`;
+
         grouped[key] = {
           id: window.AppHelpers.generateUUID(),
           municipality: item.municipio,
           name: item.frente,
           date: window.AppHelpers.getFormattedCurrentDate(),
-          metadata: frenteMetadata[key] || { estadoVia: '', avance: '', longitud: '', km: '', subregion: '' },
+          metadata: meta,
           activityType: frenteMetadata[key] ? frenteMetadata[key].activityType : 'Emergencias Viales',
           subregion: frenteMetadata[key] ? frenteMetadata[key].subregion : 'Desconocida',
           equipment: []
@@ -824,6 +1040,8 @@ window.AppModules = window.AppModules || {};
     let totalAlquilados = 0;
     let typeStats = { 'Emergencias Viales': 0, 'Atención a Puntos Críticos': 0 };
     let subregionStats = {};
+    let totalAvanceActual = 0;
+    let totalAvanceAnterior = 0;
     
     frentes.forEach(f => {
       totalEquipos += f.equipment.length;
@@ -841,11 +1059,32 @@ window.AppModules = window.AppModules || {};
       const subregion = f.metadata && f.metadata.subregion && f.metadata.subregion !== 'Desconocida' ? f.metadata.subregion.toUpperCase() : 'NO ESPECIFICADA';
       if(subregionStats[subregion]) subregionStats[subregion]++;
       else subregionStats[subregion] = 1;
+
+      const actVal = f.metadata && f.metadata.avanceActual !== undefined ? f.metadata.avanceActual : parseAvanceNum(f.metadata?.avance);
+      const antVal = f.metadata && f.metadata.avanceAnterior !== undefined ? f.metadata.avanceAnterior : 0;
+      totalAvanceActual += actVal;
+      totalAvanceAnterior += antVal;
     });
     
     // Sort subregions by count descending
     const sortedSubregions = Object.keys(subregionStats).sort((a, b) => subregionStats[b] - subregionStats[a]);
 
+    const avgAvanceActual = totalFrentes > 0 ? Math.round(totalAvanceActual / totalFrentes) : 0;
+    const avgAvanceAnterior = totalFrentes > 0 ? Math.round(totalAvanceAnterior / totalFrentes) : 0;
+    const avgDeltaSemanal = avgAvanceActual - avgAvanceAnterior;
+
+    // Top frentes con mayor avance semanal
+    const topIncrementos = [...frentes].map(f => {
+      const actVal = f.metadata && f.metadata.avanceActual !== undefined ? f.metadata.avanceActual : parseAvanceNum(f.metadata?.avance);
+      const antVal = f.metadata && f.metadata.avanceAnterior !== undefined ? f.metadata.avanceAnterior : 0;
+      return {
+        municipality: f.municipality,
+        name: f.name,
+        actVal,
+        antVal,
+        delta: actVal - antVal
+      };
+    }).filter(item => item.delta > 0).sort((a, b) => b.delta - a.delta).slice(0, 4);
 
     let printHTML = `
       <!DOCTYPE html>
@@ -863,10 +1102,10 @@ window.AppModules = window.AppModules || {};
           .date-text { text-align: right; margin-bottom: 20px; font-size: 12px; }
           h1 { text-align: center; color: #1e3a8a; font-size: 18px; margin-bottom: 20px; text-transform: uppercase; }
           
-          .dashboard { display: flex; justify-content: space-around; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 25px; }
-          .dash-stat { text-align: center; }
-          .dash-stat h4 { margin: 0; font-size: 12px; color: #64748b; text-transform: uppercase; }
-          .dash-stat div { font-size: 24px; font-weight: bold; color: #0f172a; margin-top: 5px; }
+          .dashboard { display: flex; justify-content: space-around; background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; margin-bottom: 20px; flex-wrap: wrap; gap: 8px; }
+          .dash-stat { text-align: center; min-width: 100px; }
+          .dash-stat h4 { margin: 0; font-size: 11px; color: #64748b; text-transform: uppercase; }
+          .dash-stat div { font-size: 22px; font-weight: bold; color: #0f172a; margin-top: 4px; }
           .dash-stat .green { color: #16a34a; }
           .dash-stat .blue { color: #0284c7; }
 
@@ -883,18 +1122,25 @@ window.AppModules = window.AppModules || {};
           .tag-emergencia { background-color: #dc2626; }
           .tag-apc { background-color: #0284c7; }
           
-          .progress-container { width: 100%; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-top: 5px; height: 12px; position: relative; }
-          .progress-bar { height: 100%; background: #16a34a; }
-          .progress-text { position: absolute; width: 100%; text-align: center; font-size: 9px; font-weight: bold; color: #fff; top: 0; left: 0; line-height: 12px; text-shadow: 0px 0px 2px rgba(0,0,0,0.8); }
+          .badge-delta { display: inline-block; padding: 2px 5px; border-radius: 3px; font-size: 9px; font-weight: bold; line-height: 1.2; }
+          .badge-delta-pos { background-color: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+          .badge-delta-zero { background-color: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+          .badge-delta-neg { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+
+          .progress-container { width: 100%; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-top: 4px; height: 14px; position: relative; }
+          .progress-dual { display: flex; height: 100%; width: 100%; }
+          .progress-prev { background-color: #0284c7; height: 100%; }
+          .progress-delta { background-color: #16a34a; height: 100%; }
+          .progress-text { position: absolute; width: 100%; text-align: center; font-size: 9px; font-weight: bold; color: #fff; top: 0; left: 0; line-height: 14px; text-shadow: 0px 0px 2px rgba(0,0,0,0.8); }
           .progress-text-dark { color: #334155; text-shadow: none; }
 
-          .charts-container { display: flex; gap: 20px; margin-bottom: 25px; page-break-inside: avoid; }
-          .chart-box { flex: 1; background: #fff; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px; }
-          .chart-title { font-size: 14px; font-weight: bold; color: #1e3a8a; margin-top: 0; margin-bottom: 15px; text-align: center; }
+          .charts-container { display: flex; gap: 15px; margin-bottom: 25px; page-break-inside: avoid; }
+          .chart-box { flex: 1; background: #fff; border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; }
+          .chart-title { font-size: 13px; font-weight: bold; color: #1e3a8a; margin-top: 0; margin-bottom: 12px; text-align: center; }
           
-          .bar-row { display: flex; align-items: center; margin-bottom: 8px; font-size: 11px; }
-          .bar-label { width: 40%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; padding-right: 10px; }
-          .bar-track { width: 60%; background: #e2e8f0; height: 14px; border-radius: 3px; overflow: hidden; position: relative; }
+          .bar-row { display: flex; align-items: center; margin-bottom: 7px; font-size: 11px; }
+          .bar-label { width: 42%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; padding-right: 8px; }
+          .bar-track { width: 58%; background: #e2e8f0; height: 14px; border-radius: 3px; overflow: hidden; position: relative; }
           .bar-fill { height: 100%; background: #0284c7; }
           .bar-value { position: absolute; right: 5px; top: 1px; font-weight: bold; color: #0f172a; font-size: 10px; }
           
@@ -903,7 +1149,7 @@ window.AppModules = window.AppModules || {};
           
           @media print {
             body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            @page { margin: 1.5cm; }
+            @page { margin: 1.2cm; }
           }
         </style>
       </head>
@@ -941,15 +1187,23 @@ window.AppModules = window.AppModules || {};
             <div style="color: #f59e0b;">${totalAlquilados}</div>
           </div>
           <div class="dash-stat">
-            <h4>Total Equipos en Terreno</h4>
+            <h4>Total Equipos</h4>
             <div>${totalEquipos}</div>
+          </div>
+          <div class="dash-stat" style="border-left: 2px solid #cbd5e1; padding-left: 10px;">
+            <h4>Avance Promedio</h4>
+            <div class="green">${avgAvanceActual}%</div>
+          </div>
+          <div class="dash-stat">
+            <h4>Incremento Semanal</h4>
+            <div style="color: ${avgDeltaSemanal >= 0 ? '#16a34a' : '#dc2626'};">${avgDeltaSemanal >= 0 ? '+' : ''}${avgDeltaSemanal}%</div>
           </div>
         </div>
 
         <div class="charts-container">
           <div class="chart-box">
-            <h4 class="chart-title">Frentes por Tipo de Actividad</h4>
-            <div style="display:flex; height: 30px; border-radius: 5px; overflow: hidden; margin-bottom: 10px; border: 1px solid #cbd5e1;">
+            <h4 class="chart-title">Frentes por Actividad</h4>
+            <div style="display:flex; height: 26px; border-radius: 5px; overflow: hidden; margin-bottom: 10px; border: 1px solid #cbd5e1;">
                <div style="width: ${totalFrentes > 0 ? (typeStats['Emergencias Viales'] / totalFrentes) * 100 : 0}%; background: #dc2626; display:flex; align-items:center; justify-content:center; color:white; font-size:11px; font-weight:bold; overflow:hidden;" title="Emergencias">
                   ${typeStats['Emergencias Viales']}
                </div>
@@ -957,16 +1211,16 @@ window.AppModules = window.AppModules || {};
                   ${typeStats['Atención a Puntos Críticos']}
                </div>
             </div>
-            <div style="display:flex; justify-content:space-around; font-size:11px;">
-              <div><span style="display:inline-block; width:10px; height:10px; background:#dc2626; border-radius:50%; margin-right:4px;"></span>Emergencias Viales (${typeStats['Emergencias Viales']})</div>
-              <div><span style="display:inline-block; width:10px; height:10px; background:#0284c7; border-radius:50%; margin-right:4px;"></span>Atención P.C. (${typeStats['Atención a Puntos Críticos']})</div>
+            <div style="display:flex; justify-content:space-around; font-size:10px;">
+              <div><span style="display:inline-block; width:9px; height:9px; background:#dc2626; border-radius:50%; margin-right:3px;"></span>Emergencias (${typeStats['Emergencias Viales']})</div>
+              <div><span style="display:inline-block; width:9px; height:9px; background:#0284c7; border-radius:50%; margin-right:3px;"></span>APC (${typeStats['Atención a Puntos Críticos']})</div>
             </div>
           </div>
           
           <div class="chart-box">
             <h4 class="chart-title">Distribución por Subregión</h4>
             <div style="max-height: 120px; overflow: hidden;">
-              ${sortedSubregions.slice(0, 5).map(sr => {
+              ${sortedSubregions.slice(0, 4).map(sr => {
                  const pct = (subregionStats[sr] / totalFrentes) * 100;
                  return `
                  <div class="bar-row">
@@ -977,7 +1231,24 @@ window.AppModules = window.AppModules || {};
                    </div>
                  </div>`;
               }).join('')}
-              ${sortedSubregions.length > 5 ? `<div style="text-align:center; font-size:10px; color:#64748b; margin-top:5px;">+${sortedSubregions.length - 5} subregiones más...</div>` : ''}
+              ${sortedSubregions.length > 4 ? `<div style="text-align:center; font-size:10px; color:#64748b; margin-top:2px;">+${sortedSubregions.length - 4} subregiones más...</div>` : ''}
+            </div>
+          </div>
+
+          <div class="chart-box" style="flex: 1.2;">
+            <h4 class="chart-title">Mayor Avance Semanal (+Δ)</h4>
+            <div style="max-height: 120px; overflow: hidden;">
+              ${topIncrementos.length === 0 ? `
+                <div style="font-size:11px; color:#64748b; text-align:center; padding-top:25px;">Sin variaciones registradas esta semana</div>
+              ` : topIncrementos.map(item => `
+                <div class="bar-row">
+                  <div class="bar-label" title="${window.AppHelpers.escapeHTML(item.municipality)}">${window.AppHelpers.escapeHTML(item.municipality)}</div>
+                  <div class="bar-track">
+                    <div class="bar-fill" style="width: ${Math.min(100, item.delta * 2)}%; background: #16a34a;"></div>
+                    <div class="bar-value" style="color:#15803d; font-weight:bold;">+${item.delta}%</div>
+                  </div>
+                </div>
+              `).join('')}
             </div>
           </div>
         </div>
@@ -997,31 +1268,36 @@ window.AppModules = window.AppModules || {};
               const actType = f.metadata && f.metadata.activityType ? f.metadata.activityType : 'Emergencias Viales';
               const actClass = actType.includes('Emergencia') ? 'tag-emergencia' : 'tag-apc';
               
-              // Parse progress percentage
-              let progNum = 0;
-              if (f.metadata && f.metadata.avance) {
-                 const match = f.metadata.avance.match(/(\d+)(?:\s*%)/);
-                 if (match) progNum = parseInt(match[1]);
-                 else {
-                   const match2 = f.metadata.avance.match(/(\d+)/);
-                   if (match2 && parseInt(match2[1]) <= 100) progNum = parseInt(match2[1]);
-                 }
-              }
-              const progColorClass = progNum > 30 ? 'progress-text' : 'progress-text progress-text-dark';
+              const actVal = f.metadata && f.metadata.avanceActual !== undefined ? f.metadata.avanceActual : parseAvanceNum(f.metadata?.avance);
+              const antVal = f.metadata && f.metadata.avanceAnterior !== undefined ? f.metadata.avanceAnterior : 0;
+              const deltaVal = f.metadata && f.metadata.deltaSemanal !== undefined ? f.metadata.deltaSemanal : (actVal - antVal);
+              const deltaClass = deltaVal > 0 ? 'badge-delta-pos' : (deltaVal < 0 ? 'badge-delta-neg' : 'badge-delta-zero');
+              const deltaSign = deltaVal > 0 ? '+' : '';
+              const progColorClass = actVal > 35 ? 'progress-text' : 'progress-text progress-text-dark';
               
               let rows = `<tr class="frente-header">
                 <td colspan="5">
-                  <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
                     <div>
                       📍 ${window.AppHelpers.escapeHTML(f.municipality)} - ${window.AppHelpers.escapeHTML(f.name)}<br/>
                       <span class="tag-activity ${actClass}">${window.AppHelpers.escapeHTML(actType)}</span>
                       <span class="tag-activity" style="background:#64748b; margin-left:5px;">${window.AppHelpers.escapeHTML(f.metadata?.subregion || 'Subregión N/E')}</span>
                     </div>
-                    <div style="width: 120px;">
-                      <div style="font-size:9px; text-align:center; color:#64748b; font-weight:normal; margin-bottom:2px;">Avance Reportado</div>
-                      <div class="progress-container">
-                        <div class="progress-bar" style="width: ${progNum}%;"></div>
-                        <div class="${progColorClass}">${progNum}%</div>
+                    <div style="min-width: 200px; text-align: right;">
+                      <div style="display:flex; justify-content:space-between; align-items:center; font-size:9px; margin-bottom:3px;">
+                        <span style="color:#475569;">Sem. Ant: <strong>${antVal}%</strong> ➔ Act: <strong style="color:#0f172a;">${actVal}%</strong></span>
+                        <span class="badge-delta ${deltaClass}">${deltaSign}${deltaVal}% sem.</span>
+                      </div>
+                      <div class="progress-container" style="height: 14px;">
+                        <div class="progress-dual">
+                          <div class="progress-prev" style="width: ${Math.min(antVal, actVal)}%;" title="Semana Anterior: ${antVal}%"></div>
+                          <div class="progress-delta" style="width: ${Math.max(0, actVal - antVal)}%;" title="Incremento Semanal: +${deltaVal}%"></div>
+                        </div>
+                        <div class="${progColorClass}" style="line-height: 14px;">${actVal}%</div>
+                      </div>
+                      <div style="font-size:8px; color:#64748b; margin-top:2px; display:flex; justify-content:space-between;">
+                        <span><span style="display:inline-block;width:6px;height:6px;background:#0284c7;border-radius:1px;margin-right:2px;"></span>Semana Anterior</span>
+                        <span><span style="display:inline-block;width:6px;height:6px;background:#16a34a;border-radius:1px;margin-right:2px;"></span>Incremento Semanal</span>
                       </div>
                     </div>
                   </div>
