@@ -3,15 +3,19 @@
 Aplicación local (HTML + JavaScript, sin servidor) para el seguimiento del contrato de
 maquinaria con RENTAN — Secretaría de Infraestructura Física, Gobernación de Antioquia.
 
-Estado: versión de pruebas. Uso local y repositorio en GitHub; no se publica en la web.
+Estado: versión de pruebas. Se usa en el PC y publicada en GitHub Pages para pruebas y clientes.
 
 ## Uso
+
+En línea (pruebas y clientes): `https://alexandergomezsif.github.io/GestionMaquinariaGobernacion/` (GitHub Pages; requiere que el repositorio sea público en el plan gratuito de GitHub). Cada navegador guarda sus propios datos.
+
+En el PC:
 
 1. Doble clic en `ABRIR_SISTEMA.bat` (abre `index.html` en el navegador predeterminado).
 2. Los cambios se guardan solos en el navegador (IndexedDB).
 3. Exporte un respaldo JSON con el botón 💾 al menos una vez por semana y guárdelo fuera del PC.
 
-Use siempre el mismo navegador (Chrome o Edge): los datos viven en el navegador donde se crearon.
+Use siempre el mismo navegador (Brave, Chrome o Edge): los datos viven en el navegador donde se crearon.
 
 ## Estructura
 
@@ -24,7 +28,8 @@ Use siempre el mismo navegador (Chrome o Edge): los datos viven en el navegador 
 | `js/modules/frentes/` | Frentes activos: importador del Excel, tarjetas, avance semanal, mapa, informe PDF |
 | `js/utils/helpers.js` | Fechas locales, escape de HTML, propietario de equipos, firma |
 | `css/` | Estilos |
-| `bundle.py` | Genera `GESTION MAQUINARIA 2026.html` (copia portable, no se versiona) |
+| `bundle.py` | Genera `portable/GESTION_MAQUINARIA_PORTABLE.html` (copia en un solo archivo, no se versiona) |
+| `GESTION MAQUINARIA 2026.html`, `index_bundle.html` | Redirigen a `index.html` para que los enlaces antiguos sigan funcionando |
 | `tests/` | Pruebas unitarias del importador (Node) y pruebas en navegador (Playwright) |
 
 ## Pruebas

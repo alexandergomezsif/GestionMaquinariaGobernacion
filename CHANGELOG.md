@@ -1,5 +1,10 @@
 # Cambios
 
+## v1.2.1 — 2026-10-06
+
+- `GESTION MAQUINARIA 2026.html` e `index_bundle.html` vuelven al repositorio como páginas de redirección a `index.html`, para que los enlaces de GitHub Pages ya compartidos sigan funcionando.
+- `bundle.py` genera la copia portable en `portable/GESTION_MAQUINARIA_PORTABLE.html` (no se versiona).
+
 ## v1.2 — 2026-10-06 (Fase 3: calidad y mantenibilidad)
 
 Verificado: 6/6 pruebas unitarias del importador (`node --test tests/importador.test.js`), prueba de humo y de regresión en navegador sin errores, revisión automática sin variables indefinidas, y capturas en modo claro y oscuro.

@@ -18,11 +18,11 @@ if errorlevel 1 echo [AVISO] No se pudo generar el bundle. Verifique que Python 
 echo.
 
 echo [2/5] Retirando del control de versiones archivos que no deben subirse...
-git rm --cached --ignore-unmatch -q "GESTION MAQUINARIA 2026.html" "index_bundle.html" "img/firmaalexgomez.png" "img/firmaalexgomez.png.png" > nul
+git rm --cached --ignore-unmatch -q "img/firmaalexgomez.png" "img/firmaalexgomez.png.png" > nul
 echo.
 
 echo [3/5] Archivos que se van a subir:
-git add -A js css img index.html bundle.py export_code.py ABRIR_SISTEMA.bat SUBIR_A_GITHUB.bat LIMPIEZA_V1.2.bat .gitignore README.md CHANGELOG.md tests 2> nul
+git add -A js css img index.html "GESTION MAQUINARIA 2026.html" index_bundle.html bundle.py export_code.py ABRIR_SISTEMA.bat SUBIR_A_GITHUB.bat LIMPIEZA_V1.2.bat .gitignore README.md CHANGELOG.md tests 2> nul
 git status --short
 echo.
 set /p CONTINUAR="Revise la lista. Desea continuar? (S/N): "

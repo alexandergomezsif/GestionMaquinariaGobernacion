@@ -1,8 +1,10 @@
 """Empaqueta la aplicación en un único HTML autocontenido.
 
 Lee index.html de la MISMA carpeta donde está este script, incrusta CSS, JS
-locales e imágenes (img/*.png) y escribe "GESTION MAQUINARIA 2026.html".
-El archivo generado NO se versiona (ver .gitignore).
+locales e imágenes (img/*.png) en una sola copia portable.
+El archivo generado (portable/GESTION_MAQUINARIA_PORTABLE.html) NO se versiona.
+Nota: "GESTION MAQUINARIA 2026.html" e "index_bundle.html" en la raíz son
+páginas de redirección a index.html para que los enlaces antiguos de GitHub Pages sigan funcionando.
 """
 import base64
 import pathlib
@@ -11,7 +13,7 @@ import sys
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent
 INDEX = BASE_DIR / 'index.html'
-OUT = BASE_DIR / 'GESTION MAQUINARIA 2026.html'
+OUT = BASE_DIR / 'portable' / 'GESTION_MAQUINARIA_PORTABLE.html'
 
 
 def read_text(rel):
@@ -49,6 +51,7 @@ def main():
     html = re.sub(r'<link rel="stylesheet" href="(?!https?:)(.*?)">', inline_css, html)
     html = re.sub(r'<script src="(?!https?:)(.*?)"></script>', inline_js, html)
     html = re.sub(r'img/[A-Za-z0-9_\-]+\.png', inline_img, html)
+    OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(html, encoding='utf-8')
     print(f'Bundle generado: {OUT.name} ({OUT.stat().st_size / 1_048_576:.2f} MB) desde {BASE_DIR}')
 
