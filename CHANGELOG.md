@@ -1,5 +1,13 @@
 # Cambios
 
+## v1.3 — 2026-10-06 (frentes publicados en la web)
+
+- La aplicación trae incluidos los frentes activos de la semana del 5 de octubre de 2026 (hoja 5_Octubre; avance anterior desde 28_Septiembre): 15 frentes, 64 equipos (GOB 7 · RNT 19 · ALQ 36 · Sin clasificar 2).
+- Al abrir el enlace de GitHub Pages, cualquier navegador carga esa semana sin importar el Excel. Si el navegador tenía datos más antiguos, se guardan en el histórico y se reemplazan.
+- Una importación manual posterior tiene prioridad en ese navegador hasta que se publique una semana más reciente.
+- La pantalla Frentes Activos indica el origen de los datos (publicados o importados).
+- Nuevo `tools/generar_frentes_publicados.js` para generar `js/data/frentesPublicados.js` desde el Excel.
+
 ## v1.2.1 — 2026-10-06
 
 - `GESTION MAQUINARIA 2026.html` e `index_bundle.html` vuelven al repositorio como páginas de redirección a `index.html`, para que los enlaces de GitHub Pages ya compartidos sigan funcionando.

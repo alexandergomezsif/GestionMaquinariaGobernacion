@@ -22,6 +22,13 @@
       console.error(err);
     }
 
+    let publicadosAplicados = false;
+    try {
+      publicadosAplicados = !!(window.Frentes && window.Frentes.aplicarPublicados && window.Frentes.aplicarPublicados());
+    } catch (err) {
+      console.error('No se pudieron cargar los frentes publicados:', err);
+    }
+
     window.AppStore.subscribe(() => {
       updateAlertBadge();
       navigateToModule(currentActiveModule, false);
@@ -32,6 +39,10 @@
     navigateToModule(currentActiveModule);
     updateBackupReminder();
     showStartupNotices(loadInfo);
+    if (publicadosAplicados) {
+      const pub = window.FRENTES_PUBLICADOS;
+      window.AppHelpers.toast('Frentes activos actualizados', `Se cargó la semana publicada ${pub.version}: ${pub.resumen ? pub.resumen.frentes + ' frentes, ' + pub.resumen.equipos + ' equipos' : ''}. Los anteriores quedaron en el histórico.`, 'info', 10000);
+    }
   });
 
   function initBackupButton() {

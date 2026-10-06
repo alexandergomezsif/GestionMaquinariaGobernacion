@@ -28,6 +28,7 @@ window.Frentes = window.Frentes || {};
           <div>
             <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-heading);">Frentes Activos</h2>
             <p style="color: var(--text-secondary); font-size: 0.9rem;">Gestión de emergencias y puntos críticos con maquinaria asignada.</p>
+            ${F.describirOrigen() ? `<p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 2px;">📌 ${window.AppHelpers.escapeHTML(F.describirOrigen())}</p>` : ''}
           </div>
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <input type="file" id="file-import-csv" accept=".csv, .xlsx" style="display: none;" />

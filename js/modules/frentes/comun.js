@@ -49,4 +49,34 @@ window.Frentes = window.Frentes || {};
       sign: delta > 0 ? '+' : ''
     };
   };
+
+  /**
+   * Aplica los frentes publicados con la aplicación (js/data/frentesPublicados.js)
+   * cuando son más recientes que los que tiene este navegador. Así quien abra el
+   * enlace de GitHub Pages ve la última semana sin importar el Excel.
+   * Una importación manual posterior a la publicación tiene prioridad hasta que
+   * se publique una semana más reciente.
+   * @returns {boolean} true si se aplicaron
+   */
+  F.aplicarPublicados = function aplicarPublicados() {
+    const pub = window.FRENTES_PUBLICADOS;
+    if (!pub || !Array.isArray(pub.frentes) || !pub.version || !window.AppStore) return false;
+    const state = window.AppStore.getState();
+    const origen = state.frentesOrigen || {};
+    if (origen.version && origen.version >= pub.version) return false;
+    window.AppStore.archiveFrentesSnapshot('Antes de cargar datos publicados ' + pub.version);
+    window.AppStore.updateState('frentesOrigen', { tipo: 'publicado', version: pub.version, fuente: pub.fuente, hoja: pub.hoja });
+    window.AppStore.updateState('frentesActivos', JSON.parse(JSON.stringify(pub.frentes)));
+    return true;
+  };
+
+  /**
+   * Texto corto que describe de dónde vienen los frentes que se están viendo.
+   */
+  F.describirOrigen = function describirOrigen() {
+    const o = (window.AppStore && window.AppStore.getState().frentesOrigen) || null;
+    if (!o) return '';
+    if (o.tipo === 'publicado') return `Datos publicados de la semana ${o.version} (${o.fuente}${o.hoja ? ', hoja ' + o.hoja : ''})`;
+    return `Datos importados en este navegador el ${o.version}${o.fuente ? ' (' + o.fuente + ')' : ''}`;
+  };
 })();

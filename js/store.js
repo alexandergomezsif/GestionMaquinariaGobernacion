@@ -50,6 +50,7 @@ window.AppStore = (function() {
     // 6. Frentes Activos (Emergencias y Puntos Críticos) + histórico de importaciones
     frentesActivos: [],
     historialFrentes: [],
+    frentesOrigen: null,
 
     // 7. Configuración del usuario
     config: {

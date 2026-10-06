@@ -635,6 +635,7 @@ window.Frentes = window.Frentes || {};
     const { frentesActivos, summary } = result;
     openImportSummaryModal(summary, () => {
       window.AppStore.archiveFrentesSnapshot('Antes de importar ' + (sourceLabel || 'archivo'));
+      window.AppStore.updateState('frentesOrigen', { tipo: 'importado', version: window.AppHelpers.todayISO(), fuente: sourceLabel || '' });
       window.AppStore.updateState('frentesActivos', frentesActivos);
 
       // Descarga automática de respaldo JSON de los frentes importados

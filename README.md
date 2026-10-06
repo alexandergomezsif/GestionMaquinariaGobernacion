@@ -50,6 +50,16 @@ python tests/prueba_regresion.py .
 Las pruebas usan un navegador temporal; no tocan los datos de su navegador.
 `prueba_humo.py` importa el Excel que esté en `FentesActivos/` y reporta los conteos GOB / RNT / ALQ / Sin clasificar.
 
+## Actualizar los frentes publicados en la web
+
+Los frentes que ve cualquier persona al abrir el enlace salen de `js/data/frentesPublicados.js`. Para publicar una semana nueva (requiere Node.js):
+
+```
+node tools/generar_frentes_publicados.js "FentesActivos/<archivo>.xlsx" <hoja> <hojaSemanaAnterior> <AAAA-MM-DD>
+```
+
+Luego subir los cambios con `SUBIR_A_GITHUB.bat`. El Excel original no se sube; solo los datos de frentes.
+
 ## Publicar cambios
 
 `SUBIR_A_GITHUB.bat` genera el bundle local, muestra los archivos que se subirán, pide confirmación y mensaje, y hace push a la rama actual.
