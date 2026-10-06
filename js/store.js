@@ -27,81 +27,223 @@ window.AppStore = (function() {
     cronograma: [],
 
     // 2. Órdenes de Trabajo de Mantenimiento
-    mantenimientos: [
-      {
-        id: 'mt-1',
-        equipoId: 'eq-7',
-        tipo: 'Correctivo',
-        descripcion: 'Instalación de repuesto de bomba hidráulica importada',
-        fecha: '2026-07-24',
-        estado: 'En Proceso',
-        responsable: 'Taller Central - Mecánico Juan Pérez',
-        costoEstimado: 4500000
-      },
-      {
-        id: 'mt-2',
-        equipoId: 'eq-14',
-        tipo: 'Preventivo',
-        descripcion: 'Revisión y cambio de sistema neumático y válvulas de freno',
-        fecha: '2026-07-23',
-        estado: 'Pendiente',
-        responsable: 'Taller Norte',
-        costoEstimado: 1200000
-      }
-    ],
+    mantenimientos: [],
 
     // 3. Agenda Diaria
-    agenda: [
-      { id: 'ag-1', titulo: 'Comité Técnico Operativo', categoria: 'Reunión', priority: 'Alta', status: 'Pendiente', fecha: new Date().toISOString().split('T')[0], notes: 'Revisar estado de la flota de maquinaria.' },
-      { id: 'ag-2', titulo: 'Inspección de Taller', categoria: 'Inspección', priority: 'Media', status: 'Pendiente', fecha: new Date().toISOString().split('T')[0], notes: 'Verificar avances en el retrocargador averiado.' }
-    ],
+    agenda: [],
 
-    // 4. Informes Operativos
-    informes: [
-      { id: 'inf-1', titulo: 'Informe Operativo Semanal N° 29', tipo: 'Semanal', periodo: 'Semana 29 (14-20 Julio 2026)', fechaLimite: '2026-07-24', status: 'Aprobado', responsable: 'Alexander Gómez Avendaño', notas: 'Consolidado de operación.' },
-      { id: 'inf-2', titulo: 'Informe Consolidado de Mantenimientos Julio', tipo: 'Mensual', periodo: 'Julio 2026', fechaLimite: '2026-08-03', status: 'Pendiente', responsable: 'Alexander Gómez Avendaño', notas: 'Borrador en construcción.' }
-    ],
+    // 4. Informes Operativos y actas generadas
+    informes: [],
+    actasGeneradas: [],
 
-    // 5. 7 Obligaciones Contractuales (Nivel general operativo)
+    // 5. Obligaciones Contractuales (plantilla: reemplazar por las del contrato)
     obligaciones: [
-      { id: 'obl-1', numero: 1, titulo: 'Supervisión Técnica Operativa', descripcion: 'Verificar el estado y rendimientos de la maquinaria pesada en los frentes de obra.', lastUpdate: '2026-07-22', progress: 85, notes: 'Visita de inspección realizada.' },
-      { id: 'obl-2', numero: 2, titulo: 'Control de Horómetros', descripcion: 'Revisar y avalar las planillas de horas máquina.', lastUpdate: '2026-07-20', progress: 90, notes: 'Al día en la última semana.' },
-      { id: 'obl-3', numero: 3, titulo: 'Elaboración de Informes Semanales', descripcion: 'Consolidar el avance operativo.', lastUpdate: '2026-07-21', progress: 100, notes: 'Entregados.' },
-      { id: 'obl-4', numero: 4, titulo: 'Consolidado Mensual', descripcion: 'Generar el informe ejecutivo mensual.', lastUpdate: '2026-07-15', progress: 50, notes: 'En proceso de elaboración.' },
-      { id: 'obl-5', numero: 5, titulo: 'Gestión Documental', descripcion: 'Mantener expedientes técnicos de la flota.', lastUpdate: '2026-07-19', progress: 100, notes: 'Sincronizado.' },
-      { id: 'obl-6', numero: 6, titulo: 'Atención de Emergencias', descripcion: 'Coordinar traslado de maquinaria ante derrumbes.', lastUpdate: '2026-07-23', progress: 100, notes: 'Atención oportuna.' },
-      { id: 'obl-7', numero: 7, titulo: 'Comité de Seguimiento', descripcion: 'Participar en comités técnicos semanales.', lastUpdate: '2026-07-21', progress: 100, notes: 'Acta firmada.' }
+      { id: 'obl-1', numero: 1, titulo: 'Supervisión Técnica Operativa', descripcion: 'Verificar el estado y rendimientos de la maquinaria pesada en los frentes de obra.', lastUpdate: '', progress: 0, notes: '' },
+      { id: 'obl-2', numero: 2, titulo: 'Control de Horómetros', descripcion: 'Revisar y avalar las planillas de horas máquina.', lastUpdate: '', progress: 0, notes: '' },
+      { id: 'obl-3', numero: 3, titulo: 'Elaboración de Informes Semanales', descripcion: 'Consolidar el avance operativo.', lastUpdate: '', progress: 0, notes: '' },
+      { id: 'obl-4', numero: 4, titulo: 'Consolidado Mensual', descripcion: 'Generar el informe ejecutivo mensual.', lastUpdate: '', progress: 0, notes: '' },
+      { id: 'obl-5', numero: 5, titulo: 'Gestión Documental', descripcion: 'Mantener expedientes técnicos de la flota.', lastUpdate: '', progress: 0, notes: '' },
+      { id: 'obl-6', numero: 6, titulo: 'Atención de Emergencias', descripcion: 'Coordinar traslado de maquinaria ante derrumbes.', lastUpdate: '', progress: 0, notes: '' },
+      { id: 'obl-7', numero: 7, titulo: 'Comité de Seguimiento', descripcion: 'Participar en comités técnicos semanales.', lastUpdate: '', progress: 0, notes: '' }
     ],
 
-    // 6. Frentes Activos (Emergencias y Puntos Críticos)
-    frentesActivos: []
+    // 6. Frentes Activos (Emergencias y Puntos Críticos) + histórico de importaciones
+    frentesActivos: [],
+    historialFrentes: [],
+
+    // 7. Configuración del usuario
+    config: {
+      usuario: 'Alexander Gómez Avendaño',
+      cargo: '',
+      incluirFirma: false
+    }
   };
 
-  let currentState = JSON.parse(JSON.stringify(INITIAL_STATE));
-  const listeners = [];
+  const SCHEMA_VERSION = 2;
+  const LEGACY_LS_KEY = 'AppStoreState';
+  const DB_NAME = 'GestionContratoDB';
+  const DB_STORE = 'kv';
+  const DB_KEY = 'state';
+  const META_LS_KEY = 'app_meta';
+  const MAX_HISTORIAL = 26; // ~6 meses de importaciones semanales
 
-  // Attempt to load from LocalStorage on startup
-  try {
-    const saved = localStorage.getItem('AppStoreState');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      currentState = Object.assign({}, INITIAL_STATE, parsed);
-    }
-  } catch (e) {
-    console.warn("LocalStorage no disponible o corrupto");
+  const clone = obj => JSON.parse(JSON.stringify(obj));
+
+  function withDefaults(data) {
+    const merged = Object.assign(clone(INITIAL_STATE), data || {});
+    merged.config = Object.assign(clone(INITIAL_STATE.config), (data && data.config) || {});
+    return merged;
   }
 
+  let currentState = clone(INITIAL_STATE);
+  const listeners = [];
+  let persistTimer = null;
+  let lastPersistError = null;
+  let storageMode = 'indexeddb';
+
+  // ---------------------------------------------------------------
+  // Metadatos ligeros (último guardado / último respaldo) en localStorage
+  // ---------------------------------------------------------------
+  function readMeta() {
+    try { return JSON.parse(localStorage.getItem(META_LS_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function writeMeta(patch) {
+    try { localStorage.setItem(META_LS_KEY, JSON.stringify(Object.assign(readMeta(), patch))); } catch (e) { /* metadatos no críticos */ }
+  }
+
+  // ---------------------------------------------------------------
+  // IndexedDB (capacidad de cientos de MB; funciona abriendo el HTML localmente)
+  // ---------------------------------------------------------------
+  let dbPromise = null;
+  function openDB() {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve, reject) => {
+      if (!window.indexedDB) { reject(new Error('IndexedDB no disponible en este navegador')); return; }
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error || new Error('No se pudo abrir IndexedDB'));
+      req.onblocked = () => reject(new Error('IndexedDB bloqueado por otra pestaña'));
+    });
+    return dbPromise;
+  }
+  function idbGet(key) {
+    return openDB().then(db => new Promise((resolve, reject) => {
+      const req = db.transaction(DB_STORE, 'readonly').objectStore(DB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    }));
+  }
+  function idbSet(key, value) {
+    return openDB().then(db => new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).put(value, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('Transacción abortada'));
+    }));
+  }
+
+  function readLegacyLocalStorage() {
+    try {
+      const saved = localStorage.getItem(LEGACY_LS_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      console.warn('Estado previo en localStorage ilegible:', e);
+      return null;
+    }
+  }
+
+  function reportPersistError(err) {
+    lastPersistError = err;
+    console.error('Error guardando datos:', err);
+    if (window.AppEventBus) window.AppEventBus.publish('PersistError', { message: err.message || String(err) });
+    if (window.AppHelpers) {
+      window.AppHelpers.toast('⚠️ No se pudieron guardar los cambios',
+        'Exporte un respaldo JSON ahora (botón 💾) para no perder información. Detalle: ' + (err.message || err), 'danger', 0);
+    }
+  }
+
+  function persistNow() {
+    persistTimer = null;
+    const payload = { schemaVersion: SCHEMA_VERSION, savedAt: new Date().toISOString(), data: currentState };
+    if (storageMode === 'indexeddb') {
+      return idbSet(DB_KEY, clone(payload))
+        .then(() => { lastPersistError = null; writeMeta({ lastSavedAt: payload.savedAt }); })
+        .catch(reportPersistError);
+    }
+    try {
+      localStorage.setItem(LEGACY_LS_KEY, JSON.stringify(currentState));
+      lastPersistError = null;
+      writeMeta({ lastSavedAt: payload.savedAt });
+    } catch (err) {
+      reportPersistError(err);
+    }
+    return Promise.resolve();
+  }
+
+  function schedulePersist() {
+    writeMeta({ dirtySinceBackup: true });
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(persistNow, 250);
+  }
+
+  // Guardar inmediatamente si se cierra la pestaña con cambios pendientes
+  window.addEventListener('beforeunload', () => { if (persistTimer) { clearTimeout(persistTimer); persistNow(); } });
+
+  /**
+   * Carga inicial: IndexedDB → (migración) localStorage → estado inicial.
+   */
+  const ready = (async () => {
+    try {
+      const stored = await idbGet(DB_KEY);
+      if (stored && stored.data) {
+        currentState = withDefaults(stored.data);
+        return { source: 'indexeddb' };
+      }
+      const legacy = readLegacyLocalStorage();
+      if (legacy) {
+        currentState = withDefaults(legacy);
+        await persistNow(); // migración: se conserva también la copia de localStorage como respaldo
+        return { source: 'migrado-localstorage' };
+      }
+      return { source: 'inicial' };
+    } catch (err) {
+      console.warn('IndexedDB no disponible; se usará localStorage (límite ~5 MB).', err);
+      storageMode = 'localstorage';
+      const legacy = readLegacyLocalStorage();
+      if (legacy) currentState = withDefaults(legacy);
+      return { source: 'localstorage', warning: err.message };
+    }
+  })();
+
   function notifySubscribers(topic, payload) {
-    listeners.forEach(cb => cb(currentState, topic, payload));
+    listeners.forEach(cb => {
+      try { cb(currentState, topic, payload); } catch (err) { console.error('Error en suscriptor del store:', err); }
+    });
     if (window.AppEventBus) {
       window.AppEventBus.publish(topic || 'StoreUpdated', payload || currentState);
     }
   }
 
+  /**
+   * Normaliza un respaldo importado. Acepta:
+   *  - Respaldo completo antiguo (objeto con inventario, informes, ...)
+   *  - Respaldo nuevo { schemaVersion, data: {...} }
+   *  - Archivo de frentes descargado tras una importación (arreglo de frentes)
+   */
+  function normalizeBackup(parsed) {
+    if (Array.isArray(parsed)) {
+      const looksLikeFrentes = parsed.every(f => f && Array.isArray(f.equipment));
+      if (!looksLikeFrentes) throw new Error('El arreglo no corresponde a un archivo de frentes activos.');
+      return Object.assign(clone(currentState), { frentesActivos: parsed });
+    }
+    if (!parsed || typeof parsed !== 'object') throw new Error('El archivo de respaldo no contiene un objeto válido.');
+    const data = parsed.data && typeof parsed.data === 'object' && parsed.schemaVersion ? parsed.data : parsed;
+    const requiredKeys = ['inventario', 'informes', 'agenda', 'mantenimientos'];
+    for (const k of requiredKeys) {
+      if (!Array.isArray(data[k])) throw new Error(`Estructura inválida en el respaldo. Falta el arreglo de datos: ${k}`);
+    }
+    return data;
+  }
+
   return {
+    ready,
+    SCHEMA_VERSION,
 
     getState() {
       return currentState;
+    },
+
+    getStorageInfo() {
+      const meta = readMeta();
+      return {
+        mode: storageMode,
+        lastSavedAt: meta.lastSavedAt || null,
+        lastBackupAt: meta.lastBackupAt || null,
+        dirtySinceBackup: !!meta.dirtySinceBackup,
+        lastError: lastPersistError ? (lastPersistError.message || String(lastPersistError)) : null
+      };
     },
 
     getEquipmentById(id) {
@@ -121,7 +263,8 @@ window.AppStore = (function() {
      */
     getCalculatedKPIs() {
       const inventory = currentState.inventario || [];
-      const totalEquip = inventory.length || 1;
+      const realTotal = inventory.length;
+      const totalEquip = realTotal || 1;
       const opEquip = inventory.filter(e => e.status === 'Operativo').length;
       const maintEquip = inventory.filter(e => e.status === 'En Mantenimiento').length;
       const outEquip = inventory.filter(e => e.status === 'Fuera de Servicio').length;
@@ -132,24 +275,24 @@ window.AppStore = (function() {
       const mts = currentState.mantenimientos || [];
       const completedMts = mts.filter(t => t.estado === 'Completado').length;
       const totalMts = mts.length || 1;
-      const mtCompliancePct = ((completedMts / totalMts) * 100).toFixed(1);
+      const mtCompliancePct = mts.length ? ((completedMts / totalMts) * 100).toFixed(1) : '0';
 
       const reports = currentState.informes || [];
       const approvedReports = reports.filter(r => r.status === 'Aprobado' || r.status === 'Entregado').length;
       const totalReports = reports.length || 1;
-      const reportCompliancePct = ((approvedReports / totalReports) * 100).toFixed(1);
+      const reportCompliancePct = reports.length ? ((approvedReports / totalReports) * 100).toFixed(1) : '0';
 
       return {
-        totalEquip,
+        totalEquip: realTotal,
         opEquip,
         maintEquip,
         outEquip,
         availabilityPct: parseFloat(availabilityPct),
         outOfServicePct: parseFloat(outOfServicePct),
-        totalMts,
+        totalMts: mts.length,
         completedMts,
         mtCompliancePct: parseFloat(mtCompliancePct),
-        totalReports,
+        totalReports: reports.length,
         approvedReports,
         reportCompliancePct: parseFloat(reportCompliancePct)
       };
@@ -161,12 +304,11 @@ window.AppStore = (function() {
     getUnifiedCalendarEvents() {
       const events = [];
 
-      // 1. Eventos de Agenda
       (currentState.agenda || []).forEach(a => {
         events.push({
           id: a.id,
           title: `💬 ${a.titulo}`,
-          date: a.fecha, // Already has space separator if time is present
+          date: a.fecha,
           type: 'agenda',
           category: a.categoria,
           priority: a.priority,
@@ -174,18 +316,18 @@ window.AppStore = (function() {
         });
       });
 
-      // 2. Mantenimientos
       (currentState.mantenimientos || []).forEach(t => {
+        const desc = t.descripcion || '';
         events.push({
           id: t.id,
-          title: `🛠️ MT: ${t.descripcion.substring(0, 20)}...`,
+          title: `🛠️ MT: ${desc.length > 20 ? desc.substring(0, 20) + '…' : desc}`,
           date: t.fecha,
           type: 'tarea',
-          priority: 'Media'
+          priority: 'Media',
+          notes: desc
         });
       });
 
-      // 3. Entregas de Informes
       (currentState.informes || []).forEach(inf => {
         events.push({
           id: inf.id,
@@ -195,7 +337,6 @@ window.AppStore = (function() {
         });
       });
 
-      // 4. Actividades de Cronograma
       (currentState.cronograma || []).forEach(cro => {
         events.push({
           id: cro.id,
@@ -211,28 +352,40 @@ window.AppStore = (function() {
 
     updateState(key, value, eventTopic = 'StoreUpdated') {
       currentState[key] = value;
+      schedulePersist();
       notifySubscribers(eventTopic, { key, value });
-      try { localStorage.setItem('AppStoreState', JSON.stringify(currentState)); } catch(e) {}
+    },
+
+    /**
+     * Guarda una foto de los frentes actuales en el histórico (antes de reemplazarlos).
+     */
+    archiveFrentesSnapshot(label) {
+      const frentes = currentState.frentesActivos || [];
+      if (frentes.length === 0) return;
+      const historial = [{ id: window.AppHelpers.generateUUID(), fecha: window.AppHelpers.todayISO(), etiqueta: label || '', frentes: clone(frentes) }]
+        .concat(currentState.historialFrentes || [])
+        .slice(0, MAX_HISTORIAL);
+      currentState.historialFrentes = historial;
+      schedulePersist();
     },
 
     replaceState(newState) {
-      if (!newState || typeof newState !== 'object') {
-        throw new Error('El archivo de respaldo no contiene un objeto válido.');
-      }
-
-      const requiredKeys = ['inventario', 'informes', 'agenda', 'mantenimientos'];
-      for (const k of requiredKeys) {
-        if (!Array.isArray(newState[k])) {
-          throw new Error(`Estructura inválida en el respaldo. Falta el arreglo de datos: ${k}`);
-        }
-      }
-
-      currentState = JSON.parse(JSON.stringify(newState));
+      const data = normalizeBackup(newState);
+      currentState = withDefaults(clone(data));
+      schedulePersist();
       notifySubscribers('StoreStateReplaced', currentState);
     },
 
     subscribe(callback) {
       listeners.push(callback);
+    },
+
+    /**
+     * Fuerza el guardado inmediato (útil antes de exportar o cerrar).
+     */
+    flush() {
+      if (persistTimer) clearTimeout(persistTimer);
+      return persistNow();
     },
 
     exportJSONBackup() {
@@ -241,8 +394,8 @@ window.AppStore = (function() {
       const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
       const filename = `Respaldo_Operativo_${timestamp}.json`;
 
-      const jsonStr = JSON.stringify(currentState, null, 2);
-      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const payload = { schemaVersion: SCHEMA_VERSION, exportedAt: now.toISOString(), data: currentState };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
 
       const a = document.createElement('a');
@@ -251,14 +404,16 @@ window.AppStore = (function() {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      writeMeta({ lastBackupAt: now.toISOString(), dirtySinceBackup: false });
+      if (window.AppEventBus) window.AppEventBus.publish('BackupExported', { filename });
     },
 
     importJSONBackup(jsonString) {
       try {
         const parsedData = JSON.parse(jsonString);
         this.replaceState(parsedData);
-        return { success: true, message: 'Respaldo cargado correctamente.' };
+        return { success: true, message: 'Respaldo cargado y guardado correctamente.' };
       } catch (err) {
         return { success: false, message: `Error al procesar el respaldo: ${err.message}` };
       }

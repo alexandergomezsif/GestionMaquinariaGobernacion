@@ -46,7 +46,7 @@ window.AppModules = window.AppModules || {};
       <div class="fade-in">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
           <div>
-            <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--primary-dark);">Inventario de Maquinaria Pesada</h2>
+            <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-heading);">Inventario de Maquinaria Pesada</h2>
             <p style="color: var(--text-secondary); font-size: 0.9rem;">Registro oficial de parque automotor, estado operativo e historial básico de servicio.</p>
           </div>
           <div style="display: flex; gap: 10px;">
@@ -155,7 +155,7 @@ window.AppModules = window.AppModules || {};
                       <div style="font-size: 0.78rem; color: var(--text-muted);">${window.AppHelpers.escapeHTML(item.location)}</div>
                     </td>
                     <td>
-                      <strong>${item.hourMeter.toLocaleString('es-CO')} ${unit}</strong>
+                      <strong>${(Number(item.hourMeter) || 0).toLocaleString('es-CO')} ${unit}</strong>
                     </td>
                     <td style="width: 140px;">
                       <span class="badge ${item.status === 'Operativo' ? 'badge-success' : item.status === 'En Mantenimiento' ? 'badge-warning' : 'badge-danger'}" 
@@ -183,7 +183,10 @@ window.AppModules = window.AppModules || {};
 
     document.getElementById('inv-search-input').addEventListener('input', (e) => {
       currentSearchQuery = e.target.value;
+      const caret = e.target.selectionStart;
       renderInventarioModule(container);
+      const input = document.getElementById('inv-search-input');
+      if (input) { input.focus(); input.setSelectionRange(caret, caret); }
     });
 
     document.getElementById('inv-filter-status').addEventListener('change', (e) => {
@@ -221,7 +224,6 @@ window.AppModules = window.AppModules || {};
         if (confirm('¿Está seguro de eliminar este equipo del inventario?')) {
           const updated = state.inventario.filter(i => i.id !== id);
           window.AppStore.updateState('inventario', updated);
-          renderInventarioModule(container);
         }
       });
     });
@@ -236,22 +238,22 @@ window.AppModules = window.AppModules || {};
 
     // Generar HTML de historiales
     const renderHourHistory = () => {
-      if (hourHistory.length === 0) return '<div style="font-size:0.8rem; color:#666;">Sin historial</div>';
-      return hourHistory.map(h => `<div style="font-size:0.75rem; border-bottom:1px solid #eee; padding:2px 0;">• ${h.value} hrs <span style="color:#888;">(${h.date})</span></div>`).join('');
+      if (hourHistory.length === 0) return '<div style="font-size:0.8rem; color:var(--text-secondary);">Sin historial</div>';
+      return hourHistory.map(h => `<div style="font-size:0.75rem; border-bottom:1px solid var(--card-border); padding:2px 0;">• ${window.AppHelpers.escapeHTML(h.value)} <span style="color:var(--text-secondary);">(${window.AppHelpers.escapeHTML(h.date)})</span></div>`).join('');
     };
 
     const renderNotesHistory = () => {
-      if (notesHistory.length === 0) return '<div style="font-size:0.8rem; color:#666; padding: 10px;">Sin novedades registradas</div>';
+      if (notesHistory.length === 0) return '<div style="font-size:0.8rem; color:var(--text-secondary); padding: 10px;">Sin novedades registradas</div>';
       return notesHistory.map(n => `
-        <div style="font-size:0.8rem; border-left: 2px solid var(--primary-green); padding-left: 8px; margin-bottom: 8px; background: #f9f9f9; padding: 6px; border-radius: 4px; position:relative;">
-          <div style="font-weight:bold; color:var(--primary-dark); font-size:0.7rem;">${n.author} - ${n.date}</div>
+        <div style="font-size:0.8rem; border-left: 2px solid var(--primary-green); padding-left: 8px; margin-bottom: 8px; background: var(--bg-subtle); padding: 6px; border-radius: 4px; position:relative;">
+          <div style="font-weight:bold; color: var(--text-heading); font-size:0.7rem;">${window.AppHelpers.escapeHTML(n.author)} - ${window.AppHelpers.escapeHTML(n.date)}</div>
           <div style="margin-top:4px;">${window.AppHelpers.escapeHTML(n.text)}</div>
-          <button type="button" class="btn-delete-note" data-id="${n.id}" style="position:absolute; top:4px; right:4px; background:none; border:none; color:red; cursor:pointer;" title="Eliminar Novedad">🗑️</button>
+          <button type="button" class="btn-delete-note" data-id="${window.AppHelpers.escapeHTML(n.id)}" style="position:absolute; top:4px; right:4px; background:none; border:none; color:red; cursor:pointer;" title="Eliminar Novedad">🗑️</button>
         </div>
       `).join('');
     };
 
-    const readonlyAttr = isEdit ? 'readonly disabled style="background-color: #f1f5f9;"' : '';
+    const readonlyAttr = isEdit ? 'readonly disabled style="background-color: var(--bg-subtle);"' : '';
 
     const modalHTML = `
       <div class="modal-overlay active" id="modal-equipment">
@@ -304,11 +306,11 @@ window.AppModules = window.AppModules || {};
                 <div class="form-group">
                   <label>Horómetro (Horas de Uso)</label>
                   <div style="display:flex; gap:10px;">
-                    <input type="number" id="eq-hour" class="form-control" value="${isEdit ? itemToEdit.hourMeter : 0}" required ${isEdit ? 'readonly style="background:#f1f5f9;"' : ''} />
+                    <input type="number" id="eq-hour" class="form-control" value="${isEdit ? itemToEdit.hourMeter : 0}" required ${isEdit ? 'readonly style="background:var(--bg-subtle);"' : ''} />
                     ${isEdit ? '<button type="button" class="btn btn-secondary" id="btn-update-hour" style="white-space:nowrap;">➕ Actualizar</button>' : ''}
                   </div>
                   ${isEdit ? `
-                  <div style="margin-top: 5px; max-height: 80px; overflow-y:auto; background:#fafafa; border:1px solid #ddd; padding:5px; border-radius:4px;" id="hour-history-container">
+                  <div style="margin-top: 5px; max-height: 80px; overflow-y:auto; background:var(--bg-subtle); border:1px solid var(--card-border); padding:5px; border-radius:4px;" id="hour-history-container">
                     ${renderHourHistory()}
                   </div>` : ''}
                 </div>
@@ -333,12 +335,12 @@ window.AppModules = window.AppModules || {};
                 </div>
               </div>
 
-              <div class="form-group" style="border: 1px solid #ddd; padding: 10px; border-radius: 6px; margin-top: 10px;">
+              <div class="form-group" style="border: 1px solid var(--card-border); padding: 10px; border-radius: 6px; margin-top: 10px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
                   <label style="margin:0;">Bitácora de Novedades (Trazabilidad)</label>
                   <button type="button" class="btn btn-primary" id="btn-add-note" style="padding: 4px 8px; font-size: 0.8rem;">➕ Añadir Novedad</button>
                 </div>
-                <div id="notes-history-container" style="max-height: 200px; overflow-y:auto; border:1px solid #eee; border-radius:4px;">
+                <div id="notes-history-container" style="max-height: 200px; overflow-y:auto; border:1px solid var(--card-border); border-radius:4px;">
                   ${renderNotesHistory()}
                 </div>
                 <textarea id="eq-notes" style="display:none;">${isEdit ? window.AppHelpers.escapeHTML(itemToEdit.notes || '') : ''}</textarea>
@@ -380,8 +382,8 @@ window.AppModules = window.AppModules || {};
         notesHistory.unshift({
           id: window.AppHelpers.generateUUID(),
           text: text.trim(),
-          author: window.AppStore.getState().user.name,
-          date: window.AppHelpers.formatDateTime12h(new Date().toISOString())
+          author: window.AppHelpers.getUserName(),
+          date: window.AppHelpers.formatDateTime12h(window.AppHelpers.nowLocalDateTime())
         });
         document.getElementById('notes-history-container').innerHTML = renderNotesHistory();
         attachNoteDeleteEvents();
@@ -416,7 +418,7 @@ window.AppModules = window.AppModules || {};
             inputHour.value = newHour;
             hourHistory.unshift({
               value: newHour,
-              date: window.AppHelpers.formatDateTime12h(new Date().toISOString())
+              date: window.AppHelpers.formatDateTime12h(window.AppHelpers.nowLocalDateTime())
             });
             document.getElementById('hour-history-container').innerHTML = renderHourHistory();
           } else {
@@ -439,6 +441,7 @@ window.AppModules = window.AppModules || {};
       }
 
       const newItem = {
+        ...(isEdit ? itemToEdit : {}),
         id: isEdit ? itemToEdit.id : window.AppHelpers.generateUUID(),
         equipment: document.getElementById('eq-name').value.trim(),
         brand: document.getElementById('eq-brand').value.trim(),
@@ -452,10 +455,10 @@ window.AppModules = window.AppModules || {};
         lastServiceDate: document.getElementById('eq-last-date').value,
         lastServiceDetails: document.getElementById('eq-last-details').value.trim(),
         notes: finalNotes,
-        hourHistory: isEdit ? hourHistory : [{ value: parseInt(document.getElementById('eq-hour').value) || 0, date: window.AppHelpers.formatDateTime12h(new Date().toISOString()) }],
+        hourHistory: isEdit ? hourHistory : [{ value: parseInt(document.getElementById('eq-hour').value) || 0, date: window.AppHelpers.formatDateTime12h(window.AppHelpers.nowLocalDateTime()) }],
         notesHistory: notesHistory,
         inoperativeDate: (isEdit && itemToEdit.status === statusVal) ? itemToEdit.inoperativeDate : 
-                         ((statusVal === 'Fuera de Servicio' || statusVal === 'En Mantenimiento') ? new Date().toISOString() : null)
+                         ((statusVal === 'Fuera de Servicio' || statusVal === 'En Mantenimiento') ? window.AppHelpers.todayISO() : null)
       };
 
       let updated;
@@ -465,10 +468,8 @@ window.AppModules = window.AppModules || {};
         updated = [newItem, ...currentInv];
       }
 
-      window.AppStore.updateState('inventario', updated);
       closeModal();
-      const mainContainer = document.getElementById('app-main');
-      window.AppModules.inventario(mainContainer);
+      window.AppStore.updateState('inventario', updated);
     });
   }
 
@@ -483,7 +484,6 @@ window.AppModules = window.AppModules || {};
     
     const logoGober = 'img/logogober.png';
     const logoRentan = 'img/logorentan.png';
-    const firma = 'img/firmaalexgomez.png';
 
     let printHTML = `
       <!DOCTYPE html>
@@ -609,7 +609,7 @@ window.AppModules = window.AppModules || {};
                 <td>${window.AppHelpers.escapeHTML(item.equipment)}</td>
                 <td>${window.AppHelpers.escapeHTML(item.serial)}</td>
                 <td>${window.AppHelpers.escapeHTML(item.municipality)} - ${window.AppHelpers.escapeHTML(item.location)}</td>
-                <td style="white-space: nowrap;">${item.hourMeter.toLocaleString('es-CO')} ${unit}</td>
+                <td style="white-space: nowrap;">${(Number(item.hourMeter) || 0).toLocaleString('es-CO')} ${unit}</td>
                 <td style="font-weight: ${item.status === 'Operativo' ? 'normal' : 'bold'}; color: ${item.status === 'Operativo' ? 'black' : '#dc2626'}; width: 120px;">
                   ${window.AppHelpers.escapeHTML(item.status)}
                   ${inactivityAlert}
@@ -628,7 +628,7 @@ window.AppModules = window.AppModules || {};
         </p>
 
         <div class="signature-box">
-          <img src="${firma}" class="signature-img" onerror="this.style.display='none';" />
+          ${window.AppHelpers.getSignatureHTML('width: 300px; max-height: 180px; object-fit: contain; display: block;')}
         </div>
       </body>
       </html>

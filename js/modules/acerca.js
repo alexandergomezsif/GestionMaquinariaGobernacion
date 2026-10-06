@@ -13,7 +13,7 @@ window.AppModules.acerca = function renderAcercaModule(container) {
           🏛️
         </div>
 
-        <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--primary-dark); margin-bottom: 0.25rem;">
+        <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-heading); margin-bottom: 0.25rem;">
           GOBERNACIÓN DE ANTIOQUIA
         </h2>
         <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--primary-green); margin-bottom: 0.25rem;">
@@ -25,7 +25,7 @@ window.AppModules.acerca = function renderAcercaModule(container) {
 
         <div style="background-color: var(--bg-light); border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 1.5rem; margin-bottom: 1.5rem; text-align: left;">
           <h4 style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
-            Sistema de Gestión del Contrato v1.0 (Producción Offline)
+            Sistema de Gestión del Contrato v1.1 (versión de pruebas, uso local)
           </h4>
           <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 0.75rem;">
             Aplicación web de productividad personal diseñada de forma autónoma y fuera de línea para la administración diaria de la supervisión de contratos de obra publica, control de inventario de maquinaria pesada, planillas de horómetros, seguimiento a las 7 obligaciones contractuales, generación de informes semanales/mensuales y cálculo automático de indicadores de disponibilidad (KPIs).
@@ -33,8 +33,8 @@ window.AppModules.acerca = function renderAcercaModule(container) {
           <ul style="font-size: 0.85rem; color: var(--text-secondary); padding-left: 1.25rem; line-height: 1.5;">
             <li>Tecnología: HTML5, CSS3, ES6+ Vanilla JavaScript.</li>
             <li>Motor Gráfico: HTML5 Canvas Nativo.</li>
-            <li>Modelo de Datos: In-Memory Central Store con persistencia mediante Respaldo JSON.</li>
-            <li>Seguridad: 100% Offline sin conexión ni envío de datos a servidores externos.</li>
+            <li>Datos: se guardan automáticamente en el navegador (IndexedDB). El respaldo JSON exportado es la única copia externa.</li>
+            <li>Conectividad: funciona sin internet, excepto el mapa de red vial (MapLibre, Carto y ArcGIS requieren conexión). Al abrir el mapa, los códigos de vía de los frentes se consultan en ArcGIS; ningún otro dato sale del equipo.</li>
           </ul>
         </div>
 

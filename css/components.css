@@ -342,7 +342,7 @@
 .modal-title {
   font-size: 1.1rem;
   font-weight: 700;
-  color: var(--primary-dark);
+  color: var(--text-heading);
 }
 
 .modal-close {
@@ -572,3 +572,68 @@
 }
 
 
+
+/* ===== Notificaciones, recordatorio de respaldo e importación (v2) ===== */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.toast-item {
+  margin: 0;
+  cursor: pointer;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.15);
+  animation: slideInRight 0.3s ease-out forwards;
+  background: var(--card-bg);
+}
+.backup-reminder {
+  position: fixed;
+  left: calc(var(--sidebar-width) + 20px);
+  bottom: 48px;
+  z-index: 9000;
+  background: var(--status-warning-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--status-warning);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  box-shadow: var(--shadow-md);
+  max-width: calc(100vw - var(--sidebar-width) - 420px);
+  flex-wrap: nowrap;
+}
+.backup-reminder .reminder-close { background: none; border: none; font-size: 1.1rem; cursor: pointer; color: var(--text-secondary); }
+@media (max-width: 900px) { .backup-reminder { left: 16px; right: 16px; max-width: none; flex-wrap: wrap; } }
+.btn-sm { padding: 4px 10px; font-size: 0.8rem; }
+.tag-sc { background-color: #64748b; }
+.import-summary-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 8px 0 12px; }
+.import-summary-table td { padding: 6px 8px; border-bottom: 1px solid var(--card-border); }
+.import-summary-table td:last-child { text-align: right; font-weight: 700; }
+.import-warning { background: var(--status-warning-bg); border-left: 4px solid var(--status-warning); padding: 10px 12px; border-radius: 4px; font-size: 0.85rem; margin-bottom: 10px; }
+.calendar-list-day { border: 1px solid var(--card-border); border-radius: var(--radius-md); padding: 10px; background: var(--card-bg); min-height: 120px; }
+.calendar-list-day h4 { margin: 0 0 8px; font-size: 0.85rem; color: var(--text-heading); }
+.calendar-week-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 900px) { .calendar-week-grid { grid-template-columns: 1fr; } }
+.home-panels-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem; }
+@media (max-width: 900px) { .home-panels-grid { grid-template-columns: 1fr; } }
+.alert-item.info { border-left-color: var(--status-info); }
+
+/* ===== Ajustes de modo oscuro (v1.2) ===== */
+body.dark-theme .badge-delta-zero { background-color: #334155; color: #cbd5e1; border-color: #475569; }
+body.dark-theme .badge-delta-pos { background-color: #064e3b; color: #86efac; border-color: #15803d; }
+body.dark-theme .badge-delta-neg { background-color: #7f1d1d; color: #fca5a5; border-color: #b91c1c; }
+body.dark-theme .progress-container,
+body.dark-theme .progress-bar-bg { background-color: #334155; }
+body.dark-theme .toast-item { background: var(--card-bg); color: var(--text-primary); }
+body.dark-theme .badge-danger { color: #fca5a5; }
+body.dark-theme .badge-success { color: #86efac; }
+body.dark-theme .badge-warning { color: #fcd34d; }
+body.dark-theme .badge-info { color: #7dd3fc; }

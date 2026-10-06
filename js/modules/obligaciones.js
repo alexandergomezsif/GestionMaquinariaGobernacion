@@ -12,7 +12,7 @@ window.AppModules.obligaciones = function renderObligacionesModule(container) {
   container.innerHTML = `
     <div class="fade-in">
       <div style="margin-bottom: 1.5rem;">
-        <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--primary-dark);">Obligaciones Contractuales de Supervisión</h2>
+        <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-heading);">Obligaciones Contractuales de Supervisión</h2>
         <p style="color: var(--text-secondary); font-size: 0.9rem;">Seguimiento continuo al nivel de avance (%) y estado de las 7 obligaciones del supervisor de contrato.</p>
       </div>
 
@@ -36,9 +36,9 @@ window.AppModules.obligaciones = function renderObligacionesModule(container) {
             </div>
 
             <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--card-border);">
-              <span>Última actualización: <strong>${obl.lastUpdate}</strong></span>
+              <span>Última actualización: <strong>${window.AppHelpers.escapeHTML(obl.lastUpdate || 'Sin actualizar')}</strong></span>
               <span>Observaciones: <em>${window.AppHelpers.escapeHTML(obl.notes || 'Sin observaciones.')}</em></span>
-              <button class="btn btn-secondary btn-icon btn-update-obl" data-id="${obl.id}" title="Actualizar Avance">✏️ Actualizar Avance</button>
+              <button class="btn btn-secondary btn-icon btn-update-obl" data-id="${window.AppHelpers.escapeHTML(obl.id)}" title="Actualizar Avance">✏️ Actualizar Avance</button>
             </div>
           </div>
         `).join('')}
@@ -102,9 +102,9 @@ function openObligationModal(item) {
     e.preventDefault();
     const state = window.AppStore.getState();
     const currentList = state.obligaciones || [];
-    const today = new Date().toISOString().split('T')[0];
+    const today = window.AppHelpers.todayISO();
 
-    const updatedProgress = parseInt(document.getElementById('obl-progress').value) || 0;
+    const updatedProgress = Math.min(100, Math.max(0, parseInt(document.getElementById('obl-progress').value, 10) || 0));
     const updatedNotes = document.getElementById('obl-notes').value.trim();
 
     const updated = currentList.map(o => o.id === item.id ? {
@@ -114,9 +114,7 @@ function openObligationModal(item) {
       lastUpdate: today
     } : o);
 
-    window.AppStore.updateState('obligaciones', updated);
     closeModal();
-    const mainContainer = document.getElementById('app-main');
-    window.AppModules.obligaciones(mainContainer);
+    window.AppStore.updateState('obligaciones', updated);
   });
 }

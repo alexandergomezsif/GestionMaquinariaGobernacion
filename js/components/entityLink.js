@@ -13,13 +13,7 @@ window.AppComponents.renderEntityLink = function(type, id, textOverride) {
   let badgeClass = 'badge-info';
   let icon = '';
 
-  if (type === 'contract') {
-    const contract = window.AppStore.getContractById(id);
-    text = text || (contract ? contract.number : id);
-    targetModule = 'contratos';
-    badgeClass = 'badge-neutral';
-    icon = '📜';
-  } else if (type === 'equipment') {
+  if (type === 'equipment') {
     const equipment = window.AppStore.getEquipmentById(id);
     text = text || (equipment ? `${equipment.equipment} (${equipment.serial})` : id);
     targetModule = 'inventario';
@@ -40,7 +34,7 @@ window.AppComponents.renderEntityLink = function(type, id, textOverride) {
   }
 
   return `
-    <span class="badge ${badgeClass} smart-entity-link" data-target-module="${targetModule}" data-entity-id="${id}" style="cursor: pointer; transition: transform 0.15s ease;" title="Haga clic para ir a ${targetModule}">
+    <span class="badge ${badgeClass} smart-entity-link" data-target-module="${targetModule}" data-entity-id="${window.AppHelpers.escapeHTML(id)}" style="cursor: pointer; transition: transform 0.15s ease;" title="Haga clic para ir a ${targetModule}">
       ${icon} ${window.AppHelpers.escapeHTML(text)}
     </span>
   `;

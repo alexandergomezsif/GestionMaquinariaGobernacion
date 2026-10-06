@@ -14,7 +14,7 @@ window.AppModules.informes = function renderInformesModule(container) {
     <div class="fade-in" style="padding-bottom: 4rem;">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
         <div>
-          <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--primary-dark);">Gestión y Generación de Informes</h2>
+          <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-heading);">Gestión y Generación de Informes</h2>
           <p style="color: var(--text-secondary); font-size: 0.9rem;">Recepción, revisión técnica, aprobación y generación automática de actas formales.</p>
         </div>
         <div style="display: flex; gap: 10px;">
@@ -29,7 +29,7 @@ window.AppModules.informes = function renderInformesModule(container) {
 
       <!-- Tab Navigation -->
       <div style="display: flex; gap: 15px; margin-bottom: 1rem; border-bottom: 2px solid var(--border-light);">
-        <button id="tab-flujo" class="tab-btn active" style="padding: 10px 15px; background: none; border: none; font-weight: bold; color: var(--primary-dark); border-bottom: 3px solid var(--primary-dark); cursor: pointer;">
+        <button id="tab-flujo" class="tab-btn active" style="padding: 10px 15px; background: none; border: none; font-weight: bold; color: var(--text-heading); border-bottom: 3px solid var(--primary-dark); cursor: pointer;">
           Flujo de Informes (${reports.length})
         </button>
         <button id="tab-generados" class="tab-btn" style="padding: 10px 15px; background: none; border: none; font-weight: bold; color: var(--text-secondary); border-bottom: 3px solid transparent; cursor: pointer;">
@@ -47,7 +47,7 @@ window.AppModules.informes = function renderInformesModule(container) {
                   <th>Título del Informe</th>
                   <th>Tipo</th>
                   <th>Periodo</th>
-                  <th>Contrato Vinculado</th>
+                  <th>Fecha Límite</th>
                   <th>Estado del Flujo</th>
                   <th style="text-align: right;">Acciones</th>
                 </tr>
@@ -58,9 +58,9 @@ window.AppModules.informes = function renderInformesModule(container) {
                 ` : reports.map(r => `
                   <tr>
                     <td><strong>${window.AppHelpers.escapeHTML(r.titulo)}</strong></td>
-                    <td><span class="badge ${r.tipo === 'Mensual' ? 'badge-info' : 'badge-neutral'}">${r.tipo}</span></td>
+                    <td><span class="badge ${r.tipo === 'Mensual' ? 'badge-info' : 'badge-neutral'}">${window.AppHelpers.escapeHTML(r.tipo)}</span></td>
                     <td>${window.AppHelpers.escapeHTML(r.periodo)}</td>
-                    <td>${r.contractId ? window.AppComponents.renderEntityLink('contract', r.contractId) : '-'}</td>
+                    <td>${window.AppHelpers.escapeHTML(r.fechaLimite || '-')}</td>
                     <td>
                       <span class="badge ${r.status === 'Aprobado' || r.status === 'Entregado' ? 'badge-success' : r.status === 'En Revisión' ? 'badge-warning' : 'badge-danger'}">
                         ${window.AppHelpers.escapeHTML(r.status)}
@@ -128,7 +128,7 @@ window.AppModules.informes = function renderInformesModule(container) {
 
   tabFlujo.addEventListener('click', () => {
     tabFlujo.style.borderBottomColor = 'var(--primary-dark)';
-    tabFlujo.style.color = 'var(--primary-dark)';
+    tabFlujo.style.color = 'var(--text-heading)';
     tabGenerados.style.borderBottomColor = 'transparent';
     tabGenerados.style.color = 'var(--text-secondary)';
     contentFlujo.style.display = 'block';
@@ -137,7 +137,7 @@ window.AppModules.informes = function renderInformesModule(container) {
 
   tabGenerados.addEventListener('click', () => {
     tabGenerados.style.borderBottomColor = 'var(--primary-dark)';
-    tabGenerados.style.color = 'var(--primary-dark)';
+    tabGenerados.style.color = 'var(--text-heading)';
     tabFlujo.style.borderBottomColor = 'transparent';
     tabFlujo.style.color = 'var(--text-secondary)';
     contentGenerados.style.display = 'block';
@@ -151,11 +151,10 @@ window.AppModules.informes = function renderInformesModule(container) {
       const item = reports.find(r => r.id === id);
       if (!item) return;
 
-      if (confirm(`¿Aprobar el informe "${item.titulo}" y activar la propagación automática a KPIs, Avance Semanal u Obligaciones?`)) {
-        const updatedReports = reports.map(r => r.id === id ? { ...r, status: 'Aprobado' } : r);
+      if (confirm(`¿Marcar el informe "${item.titulo}" como Aprobado?`)) {
+        const updatedReports = reports.map(r => r.id === id ? { ...r, status: 'Aprobado', fechaAprobacion: window.AppHelpers.todayISO() } : r);
         window.AppStore.updateState('informes', updatedReports, 'ReportApproved');
-        renderInformesModule(container);
-        alert('🎉 Flujo ejecutado exitosamente. Se han actualizado automáticamente los KPIs, Dashboard y Avance de Obligaciones.');
+        window.AppHelpers.toast('Informe aprobado', 'El indicador de informes del Inicio se actualizó. Las obligaciones se actualizan manualmente.', 'info', 5000);
       }
     });
   });
@@ -177,7 +176,6 @@ window.AppModules.informes = function renderInformesModule(container) {
       if (confirm('¿Desea eliminar este registro del flujo?')) {
         const updated = reports.filter(r => r.id !== id);
         window.AppStore.updateState('informes', updated);
-        renderInformesModule(container);
       }
     });
   });
@@ -197,7 +195,6 @@ window.AppModules.informes = function renderInformesModule(container) {
       if (confirm('¿Desea eliminar esta acta generada permanentemente?')) {
         const updated = actasGeneradas.filter(a => a.id !== id);
         window.AppStore.updateState('actasGeneradas', updated);
-        renderInformesModule(container);
       }
     });
   });
@@ -208,17 +205,15 @@ window.AppModules.informes = function renderInformesModule(container) {
 // -------------------------------------------------------------
 function openReportModal(itemToEdit = null) {
   const isEdit = !!itemToEdit;
-  const state = window.AppStore.getState();
-  const contracts = state.contratos || [];
 
   const modalHTML = `
     <div class="modal-overlay active" id="modal-report">
-      <form id="form-report" class="modal-content" style="background: white;">
+      <form id="form-report" class="modal-content" style="background: var(--card-bg);">
         <div class="modal-header">
           <div class="modal-title">${isEdit ? '✏️ Editar Registro de Informe' : '📊 Registrar Nuevo Flujo de Informe'}</div>
           <button type="button" class="modal-close" id="modal-close-btn">&times;</button>
         </div>
-        <div class="modal-body" style="background: white;">
+        <div class="modal-body" style="background: var(--card-bg);">
             <div class="form-group">
               <label>Título del Informe</label>
               <input type="text" id="rep-title" class="form-control" value="${isEdit ? window.AppHelpers.escapeHTML(itemToEdit.titulo) : ''}" required />
@@ -231,14 +226,6 @@ function openReportModal(itemToEdit = null) {
                   <option value="Mensual" ${isEdit && itemToEdit.tipo === 'Mensual' ? 'selected' : ''}>Mensual</option>
                 </select>
               </div>
-              <div class="form-group">
-                <label>Contrato Vinculado</label>
-                <select id="rep-contract" class="form-control">
-                  <option value="">Seleccionar Contrato...</option>
-                  <option value="NO_APLICA">No Aplica / General</option>
-                  ${contracts.map(c => `<option value="${c.id}" ${isEdit && itemToEdit.contractId === c.id ? 'selected' : ''}>${c.number} - ${c.contractor}</option>`).join('')}
-                </select>
-              </div>
             </div>
             <div class="form-grid">
               <div class="form-group">
@@ -247,7 +234,7 @@ function openReportModal(itemToEdit = null) {
               </div>
               <div class="form-group">
                 <label>Fecha Límite</label>
-                <input type="date" id="rep-due-date" class="form-control" value="${isEdit ? itemToEdit.fechaLimite : '2026-07-28'}" required />
+                <input type="date" id="rep-due-date" class="form-control" value="${isEdit ? window.AppHelpers.escapeHTML(itemToEdit.fechaLimite || '') : window.AppHelpers.todayISO()}" required />
               </div>
             </div>
             <div class="form-group">
@@ -259,7 +246,7 @@ function openReportModal(itemToEdit = null) {
               </select>
             </div>
           </div>
-          <div class="modal-footer" style="background: white;">
+          <div class="modal-footer" style="background: var(--card-bg);">
             <button type="button" class="btn btn-secondary" id="modal-cancel-btn">Cancelar</button>
             <button type="submit" class="btn btn-primary">${isEdit ? 'Guardar Cambios' : 'Registrar Informe'}</button>
           </div>
@@ -280,20 +267,19 @@ function openReportModal(itemToEdit = null) {
     const currentReports = window.AppStore.getState().informes || [];
 
     const newItem = {
+      ...(isEdit ? itemToEdit : {}),
       id: isEdit ? itemToEdit.id : window.AppHelpers.generateUUID(),
       titulo: document.getElementById('rep-title').value.trim(),
       tipo: document.getElementById('rep-type').value,
-      contractId: document.getElementById('rep-contract').value,
       periodo: document.getElementById('rep-period').value.trim(),
       fechaLimite: document.getElementById('rep-due-date').value,
       status: document.getElementById('rep-status').value,
-      responsable: 'Alexander Gómez Avendaño'
+      responsable: isEdit && itemToEdit.responsable ? itemToEdit.responsable : window.AppHelpers.getUserName()
     };
 
     let updated = isEdit ? currentReports.map(r => r.id === itemToEdit.id ? newItem : r) : [newItem, ...currentReports];
-    window.AppStore.updateState('informes', updated, 'ReportSubmitted');
     closeModal();
-    window.AppModules.informes(document.getElementById('app-main'));
+    window.AppStore.updateState('informes', updated, 'ReportSubmitted');
   });
 }
 
@@ -302,17 +288,17 @@ function openReportModal(itemToEdit = null) {
 // -------------------------------------------------------------
 function openActaGeneratorModal() {
   const now = new Date();
-  const currentDate = now.toISOString().split('T')[0];
-  const currentTime = now.toTimeString().substring(0, 5);
+  const currentDate = window.AppHelpers.todayISO(now);
+  const currentTime = window.AppHelpers.nowTime(now);
 
   const modalHTML = `
     <div class="modal-overlay active" id="modal-acta">
-      <form id="form-acta" class="modal-content" style="max-width: 800px; background: white;">
+      <form id="form-acta" class="modal-content" style="max-width: 800px; background: var(--card-bg);">
         <div class="modal-header">
           <div class="modal-title">📝 Redactar y Generar Acta (Con Membretes)</div>
           <button type="button" class="modal-close" id="modal-close-acta">&times;</button>
         </div>
-        <div class="modal-body" style="max-height: 70vh; overflow-y: auto; background: white;">
+        <div class="modal-body" style="max-height: 70vh; overflow-y: auto; background: var(--card-bg);">
             <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">
               Llena los metadatos y pega el texto plano de tus notas de reunión. El sistema le dará formato oficial con membretes y firmas.
             </p>
@@ -354,7 +340,7 @@ function openActaGeneratorModal() {
 
 
           </div>
-          <div class="modal-footer" style="background: white;">
+          <div class="modal-footer" style="background: var(--card-bg);">
             <button type="button" class="btn btn-secondary" id="modal-cancel-acta">Cancelar</button>
             <button type="submit" class="btn btn-primary">📄 Generar e Imprimir Acta</button>
           </div>
@@ -382,17 +368,15 @@ function openActaGeneratorModal() {
       asunto: document.getElementById('acta-asunto').value.trim(),
       participantes: document.getElementById('acta-participantes').value.trim(),
       contenido: document.getElementById('acta-contenido').value.trim(),
-      responsable: document.getElementById('acta-responsable') ? document.getElementById('acta-responsable').value.trim() : 'Alex Gómez'
+      responsable: window.AppHelpers.getUserName()
     };
 
     const updated = [acta, ...currentActas];
-    window.AppStore.updateState('actasGeneradas', updated);
     closeModal();
-    
+    window.AppStore.updateState('actasGeneradas', updated);
+
     // Automatically open the generated PDF view
     generateActaPDF(acta);
-    
-    window.AppModules.informes(document.getElementById('app-main'));
     // Make sure we end up on the "Generados" tab visually
     setTimeout(() => {
         document.getElementById('tab-generados').click();
@@ -406,7 +390,6 @@ function openActaGeneratorModal() {
 function generateActaPDF(acta) {
   const logoGober = 'img/logogober.png';
   const logoRentan = 'img/logorentan.png';
-  const firma = 'img/firmaalexgomez.png';
   
   // Format content paragraphs
   const paragraphs = acta.contenido.split('\n').map(p => {
@@ -543,7 +526,7 @@ function generateActaPDF(acta) {
 
       <div class="signatures">
         <div class="signature-block" style="text-align: left;">
-          <img src="${firma}" style="max-height: 150px; display: block;" onerror="this.style.display='none';">
+          ${window.AppHelpers.getSignatureHTML('max-height: 150px; display: block;')}
         </div>
       </div>
 
@@ -557,6 +540,10 @@ function generateActaPDF(acta) {
   `;
 
   const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('Por favor, permita las ventanas emergentes (pop-ups) en su navegador para ver el acta.');
+    return;
+  }
   printWindow.document.write(printHTML);
   printWindow.document.close();
 

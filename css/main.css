@@ -9,6 +9,8 @@
   --primary-dark: #004d25;
   --primary-light: #008e47;
   --primary-subtle: #e6f3eb;
+  --text-heading: #004d25;   /* títulos y textos en verde institucional */
+  --bg-subtle: #f8fafc;      /* fondos secundarios dentro de tarjetas */
   
   --secondary-white: #ffffff;
   --bg-light: #f4f6f9;
@@ -54,6 +56,8 @@ body.dark-theme {
   --primary-dark: #006837;
   --primary-light: #10b981;
   --primary-subtle: #064e3b;
+  --text-heading: #4ade80;
+  --bg-subtle: #0f172a;
   
   --secondary-white: #1e293b;
   --bg-light: #0f172a;

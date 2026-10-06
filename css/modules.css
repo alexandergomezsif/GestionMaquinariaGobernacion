@@ -105,7 +105,7 @@
 
 .calendar-day-header {
   background-color: var(--primary-subtle);
-  color: var(--primary-dark);
+  color: var(--text-heading);
   font-weight: 700;
   text-align: center;
   padding: 0.75rem 0.25rem;
@@ -395,11 +395,4 @@
 }
 
 
-@keyframes ti-spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-.ti-spin {
-  animation: ti-spin 2s linear infinite;
-  display: inline-block;
-}
+

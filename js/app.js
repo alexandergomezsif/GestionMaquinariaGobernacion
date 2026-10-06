@@ -6,21 +6,81 @@
 (function() {
   let currentActiveModule = localStorage.getItem('app_last_module') || 'inicio';
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
     initPreferences();
     initSidebarNavigation();
-    initGlobalSearch();
     initAlertDrawer();
-    initToastNotifier();
+    initBackupButton();
+
+    const mainContainer = document.getElementById('app-main');
+    if (mainContainer) mainContainer.innerHTML = '<p style="padding:2rem;color:var(--text-muted);">Cargando datos…</p>';
+
+    let loadInfo = { source: 'inicial' };
+    try {
+      loadInfo = await window.AppStore.ready;
+    } catch (err) {
+      console.error(err);
+    }
 
     window.AppStore.subscribe(() => {
       updateAlertBadge();
       navigateToModule(currentActiveModule, false);
+      updateBackupReminder();
     });
 
     updateAlertBadge();
     navigateToModule(currentActiveModule);
+    updateBackupReminder();
+    showStartupNotices(loadInfo);
   });
+
+  function initBackupButton() {
+    const btn = document.getElementById('btn-export-backup');
+    if (btn) btn.addEventListener('click', () => {
+      window.AppStore.exportJSONBackup();
+      updateBackupReminder();
+    });
+  }
+
+  /**
+   * Banner persistente si hay cambios sin respaldar hace más de 7 días.
+   */
+  let reminderDismissed = false;
+  function updateBackupReminder() {
+    const info = window.AppStore.getStorageInfo();
+    const days = info.lastBackupAt ? Math.floor((Date.now() - Date.parse(info.lastBackupAt)) / 86400000) : null;
+    const needs = info.dirtySinceBackup && (days === null || days >= 7) && !reminderDismissed;
+    let banner = document.getElementById('backup-reminder');
+    if (!needs) { if (banner) banner.remove(); return; }
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'backup-reminder';
+      banner.className = 'backup-reminder';
+      document.body.appendChild(banner);
+    }
+    banner.innerHTML = `💾 ${days === null ? 'Aún no ha exportado ningún respaldo JSON.' : `Último respaldo hace ${days} días.`} Los datos viven solo en este navegador. <button class="btn btn-primary btn-sm" id="btn-backup-now">Exportar respaldo ahora</button><button class="reminder-close" id="btn-backup-dismiss" title="Ocultar por esta sesión">&times;</button>`;
+    document.getElementById('btn-backup-dismiss').addEventListener('click', () => {
+      reminderDismissed = true;
+      banner.remove();
+    });
+    document.getElementById('btn-backup-now').addEventListener('click', () => {
+      window.AppStore.exportJSONBackup();
+      updateBackupReminder();
+    });
+  }
+
+  function showStartupNotices(loadInfo) {
+    if (loadInfo && loadInfo.source === 'migrado-localstorage') {
+      window.AppHelpers.toast('Datos migrados', 'Sus datos se trasladaron a un almacenamiento más amplio (IndexedDB). Se recomienda exportar un respaldo.', 'info', 10000);
+    }
+    if (loadInfo && loadInfo.source === 'localstorage') {
+      window.AppHelpers.toast('Almacenamiento limitado', 'Este navegador no permite IndexedDB; se usa localStorage (≈5 MB). Exporte respaldos con frecuencia.', 'warning', 0);
+    }
+    const alerts = window.AppAlerts.getSystemAlerts();
+    if (alerts.length > 0) {
+      window.AppHelpers.toast(`${alerts.length} equipo(s) inoperativo(s)`, 'Ver el detalle en la campana de alertas.', 'warning', 8000);
+    }
+  }
 
   function initPreferences() {
     const savedTheme = localStorage.getItem('app_theme');
@@ -92,73 +152,6 @@
 
   window.navigateToModule = navigateToModule;
 
-  function initGlobalSearch() {
-    const searchInput = document.getElementById('global-search-input');
-    if (!searchInput) return;
-
-    searchInput.addEventListener('input', (e) => {
-      const query = e.target.value;
-      const results = window.AppSearch.performGlobalSearch(query);
-      showSearchResultsOverlay(results, query);
-    });
-  }
-
-  function showSearchResultsOverlay(results, query) {
-    let overlay = document.getElementById('search-overlay-dialog');
-    if (!overlay) {
-      const html = `
-        <div class="modal-overlay active" id="search-overlay-dialog" style="z-index: 150;">
-          <div class="modal-content" style="max-width: 600px;">
-            <div class="modal-header">
-              <div class="modal-title">🔍 Resultados de Búsqueda Global</div>
-              <button class="modal-close" id="search-close-btn">&times;</button>
-            </div>
-            <div class="modal-body" id="search-results-list" style="max-height: 400px; overflow-y: auto;">
-            </div>
-          </div>
-        </div>
-      `;
-      document.body.insertAdjacentHTML('beforeend', html);
-      overlay = document.getElementById('search-overlay-dialog');
-
-      document.getElementById('search-close-btn').addEventListener('click', () => {
-        overlay.remove();
-        document.getElementById('global-search-input').value = '';
-      });
-    }
-
-    const listEl = document.getElementById('search-results-list');
-    if (!listEl) return;
-
-    if (!query || query.trim().length < 2) {
-      overlay.remove();
-      return;
-    }
-
-    if (results.length === 0) {
-      listEl.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 1rem;">No se encontraron coincidencias para "${query}".</p>`;
-    } else {
-      listEl.innerHTML = results.map(r => `
-        <div class="search-result-item" data-module="${r.targetModule}" style="padding: 0.75rem; border-bottom: 1px solid var(--card-border); cursor: pointer;">
-          <div style="display: flex; align-items: center; justify-content: space-between;">
-            <span class="badge badge-info">${r.module}</span>
-            <strong style="font-size: 0.9rem;">${r.title}</strong>
-          </div>
-          <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">${r.subtitle}</div>
-        </div>
-      `).join('');
-
-      listEl.querySelectorAll('.search-result-item').forEach(item => {
-        item.addEventListener('click', () => {
-          const targetModule = item.getAttribute('data-module');
-          overlay.remove();
-          document.getElementById('global-search-input').value = '';
-          navigateToModule(targetModule);
-        });
-      });
-    }
-  }
-
   function initAlertDrawer() {
     const alertBtn = document.getElementById('btn-header-alerts');
     const drawer = document.getElementById('alert-drawer-panel');
@@ -180,8 +173,8 @@
     } else {
       listContainer.innerHTML = alerts.map(a => `
         <div class="alert-item ${a.type}">
-          <div class="alert-item-title">${a.title}</div>
-          <div class="alert-item-desc">${a.description}</div>
+          <div class="alert-item-title">${window.AppHelpers.escapeHTML(a.title)}</div>
+          <div class="alert-item-desc">${window.AppHelpers.escapeHTML(a.description)}</div>
         </div>
       `).join('');
     }
@@ -199,61 +192,4 @@
     }
   }
 
-  function initToastNotifier() {
-    // Show toasts for operational alerts every 5 minutes (300000ms)
-    // Using 1 minute for demo purposes (60000ms)
-    setInterval(() => {
-      const alerts = window.AppAlerts.getSystemAlerts();
-      if (alerts.length > 0) {
-        // Just show the first one or a random one to avoid clutter
-        const a = alerts[0];
-        showToast(a.title, a.description, a.type);
-      }
-    }, 60000);
-  }
-
-  function showToast(title, message, type = 'danger') {
-    const container = document.getElementById('toast-container') || createToastContainer();
-    
-    const toast = document.createElement('div');
-    toast.className = `alert-item ${type}`;
-    toast.style.margin = '0 0 10px 0';
-    toast.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
-    toast.style.animation = 'slideIn 0.3s ease-out forwards';
-    toast.style.cursor = 'pointer';
-    
-    toast.innerHTML = `
-      <div class="alert-item-title">${title}</div>
-      <div class="alert-item-desc">${message}</div>
-    `;
-    
-    // Auto-remove after 8 seconds
-    const timeout = setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateY(100%)';
-      setTimeout(() => toast.remove(), 300);
-    }, 8000);
-    
-    // Close on click
-    toast.addEventListener('click', () => {
-      clearTimeout(timeout);
-      toast.remove();
-    });
-    
-    container.appendChild(toast);
-  }
-
-  function createToastContainer() {
-    const container = document.createElement('div');
-    container.id = 'toast-container';
-    container.style.position = 'fixed';
-    container.style.bottom = '20px';
-    container.style.right = '20px';
-    container.style.zIndex = '9999';
-    container.style.width = '350px';
-    container.style.display = 'flex';
-    container.style.flexDirection = 'column';
-    document.body.appendChild(container);
-    return container;
-  }
 })();

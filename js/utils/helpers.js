@@ -16,6 +16,91 @@ window.AppHelpers = {
   },
 
   /**
+   * Fecha LOCAL en formato YYYY-MM-DD (no usar toISOString: devuelve UTC y en
+   * Colombia (UTC-5) después de las 7 p.m. entrega la fecha del día siguiente).
+   */
+  todayISO(date = new Date()) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  },
+
+  /**
+   * Hora LOCAL en formato HH:MM.
+   */
+  nowTime(date = new Date()) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  },
+
+  /**
+   * Fecha y hora LOCAL "YYYY-MM-DD HH:MM" (formato usado en agenda y bitácoras).
+   */
+  nowLocalDateTime(date = new Date()) {
+    return `${this.todayISO(date)} ${this.nowTime(date)}`;
+  },
+
+  /**
+   * Nombre del supervisor configurado (Configuración). Nunca lanza error.
+   */
+  getUserName() {
+    const state = window.AppStore ? window.AppStore.getState() : null;
+    return (state && state.config && state.config.usuario) || 'Supervisor del contrato';
+  },
+
+  /**
+   * Bloque HTML de firma para documentos impresos. Solo inserta la imagen
+   * escaneada si el usuario lo habilitó explícitamente en Configuración.
+   */
+  getSignatureHTML(imgStyle = 'max-height: 150px; display: block;') {
+    const state = window.AppStore ? window.AppStore.getState() : null;
+    const cfg = (state && state.config) || {};
+    const name = this.escapeHTML(cfg.usuario || '');
+    const cargo = this.escapeHTML(cfg.cargo || '');
+    const img = cfg.incluirFirma
+      ? `<img src="img/firmaalexgomez.png" style="${imgStyle}" onerror="this.style.display='none';" alt="Firma">`
+      : '<div style="height: 60px;"></div>';
+    return `
+      ${img}
+      <div style="border-top: 1px solid #000; width: 260px; padding-top: 4px; font-size: 12px;">
+        <div style="font-weight: bold;">${name}</div>
+        ${cargo ? `<div>${cargo}</div>` : ''}
+      </div>`;
+  },
+
+  /**
+   * Icono de tipo de actividad del frente (rutas literales para que bundle.py las incruste).
+   */
+  getActivityIcon(activityType) {
+    return activityType === 'Emergencias Viales' ? 'img/icono-emergencias.png' : 'img/icono-puntos.png';
+  },
+
+  /**
+   * Normaliza texto para comparaciones: mayúsculas, sin tildes, espacios simples.
+   */
+  normalizeKey(str) {
+    return String(str || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
+  },
+
+  /**
+   * Muestra una notificación breve en pantalla (no bloqueante).
+   */
+  toast(title, message = '', type = 'info', timeoutMs = 6000) {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      container.className = 'toast-container';
+      document.body.appendChild(container);
+    }
+    const el = document.createElement('div');
+    el.className = `alert-item ${type} toast-item`;
+    el.innerHTML = `<div class="alert-item-title">${this.escapeHTML(title)}</div>${message ? `<div class="alert-item-desc">${this.escapeHTML(message)}</div>` : ''}`;
+    el.addEventListener('click', () => el.remove());
+    container.appendChild(el);
+    if (timeoutMs > 0) setTimeout(() => el.remove(), timeoutMs);
+  },
+
+  /**
    * Formatea una fecha ISO (YYYY-MM-DD) a formato corto en español (DD/MM/YYYY).
    */
   formatDateShort(dateString) {
@@ -96,7 +181,7 @@ window.AppHelpers = {
    * Sanitiza texto para inserción HTML segura.
    */
   escapeHTML(str) {
-    if (!str) return '';
+    if (str === undefined || str === null) return '';
     return String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -170,6 +255,20 @@ window.AppHelpers = {
    */
   getEquipmentOwnerInfo(owner = '') {
     const o = String(owner || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    if (o === 'sin clasificar' || o === 'sc' || o === '') {
+      return {
+        key: 'SC',
+        label: 'Sin clasificar',
+        tagClass: 'tag-sc',
+        color: '#64748b',
+        hexColor: '#64748b',
+        badgeClass: 'badge-neutral',
+        isGob: false,
+        isRentan: false,
+        isAlquilado: false,
+        isSinClasificar: true
+      };
+    }
     if (o.includes('gobernaci') || o.includes('propio') || o === 'gob') {
       return {
         key: 'GOB',

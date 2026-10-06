@@ -2,6 +2,7 @@
 chcp 65001 > nul
 title Subir Cambios a GitHub - Sistema de Gestión del Contrato
 color 0A
+setlocal
 
 echo ========================================================
 echo       SUBIENDO ACTUALIZACIONES A GITHUB
@@ -11,45 +12,52 @@ echo.
 
 cd /d "%~dp0"
 
-echo [1/4] Empaquetando aplicación con bundle.py...
+echo [1/5] Generando bundle local (no se sube a GitHub)...
 python bundle.py
-if exist "GESTION MAQUINARIA 2026.html" (
-    copy /y "GESTION MAQUINARIA 2026.html" "index_bundle.html" > nul
-    echo       Empaquetado completado con éxito.
-) else (
-    echo [AVISO] bundle.py no generó el archivo esperado o Python no está en PATH.
+if errorlevel 1 echo [AVISO] No se pudo generar el bundle. Verifique que Python este instalado.
+echo.
+
+echo [2/5] Retirando del control de versiones archivos que no deben subirse...
+git rm --cached --ignore-unmatch -q "GESTION MAQUINARIA 2026.html" "index_bundle.html" "img/firmaalexgomez.png" "img/firmaalexgomez.png.png" > nul
+echo.
+
+echo [3/5] Archivos que se van a subir:
+git add -A js css img index.html bundle.py export_code.py ABRIR_SISTEMA.bat SUBIR_A_GITHUB.bat LIMPIEZA_V1.2.bat .gitignore README.md CHANGELOG.md tests 2> nul
+git status --short
+echo.
+set /p CONTINUAR="Revise la lista. Desea continuar? (S/N): "
+if /i not "%CONTINUAR%"=="S" (
+    echo Operacion cancelada. No se subio nada.
+    pause
+    exit /b 0
 )
-echo.
 
-echo [2/4] Agregando archivos al control de versiones...
-git add -A
-echo.
-
-set /p COMMIT_MSG="[3/4] Escribe una descripción del cambio (Enter para mensaje automático): "
+set COMMIT_MSG=
+set /p COMMIT_MSG="[4/5] Describa el cambio (obligatorio): "
 if "%COMMIT_MSG%"=="" (
-    for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set datetime=%%I
-    set COMMIT_MSG=Actualizacion del sistema %date% %time%
+    echo [ERROR] El mensaje es obligatorio. Operacion cancelada.
+    pause
+    exit /b 1
 )
-
 git commit -m "%COMMIT_MSG%"
 echo.
 
-echo [4/4] Enviando cambios a GitHub (rama main)...
-git push origin main
+for /f "delims=" %%B in ('git rev-parse --abbrev-ref HEAD') do set RAMA=%%B
+echo [5/5] Enviando cambios a GitHub (rama %RAMA%)...
+git push origin %RAMA%
 
 if %ERRORLEVEL% EQU 0 (
     echo.
     echo ========================================================
-    echo   ¡ÉXITO! Los cambios fueron subidos correctamente a:
+    echo   EXITO: cambios subidos a la rama %RAMA% de
     echo   https://github.com/alexandergomezsif/GestionMaquinariaGobernacion
     echo ========================================================
 ) else (
     echo.
     echo ========================================================
     echo   [ERROR] No se pudo completar la subida.
-    echo   Verifica tu conexión a internet o tus credenciales de GitHub.
+    echo   Verifique su conexion a internet o sus credenciales de GitHub.
     echo ========================================================
 )
-
 echo.
 pause

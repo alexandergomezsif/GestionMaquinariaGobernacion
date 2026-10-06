@@ -10,15 +10,50 @@ window.AppModules = window.AppModules || {};
 
 (function() {
   let currentCalendarView = 'monthly';
-  let currentDateOffset = new Date(2026, 6, 23);
+  let currentDateOffset = new Date();
+  const esc = str => window.AppHelpers.escapeHTML(str);
+  const pad = num => String(num).padStart(2, '0');
+  const toISO = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  function eventCssClass(ev) {
+    if (ev.type === 'informe-mensual') return 'event-informe-mensual';
+    if (ev.type === 'tarea') return 'event-fin-mes';
+    if (ev.type === 'cronograma') return 'event-informe-mensual';
+    return 'event-informe-semanal';
+  }
+
+  function eventsOn(allEvents, dateStr) {
+    return allEvents
+      .filter(e => e.date && String(e.date).startsWith(dateStr))
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  }
+
+  function renderEventChip(ev) {
+    return `<div class="calendar-event ${eventCssClass(ev)}" data-event-id="${esc(ev.id)}" title="${esc(ev.title)}">${esc(ev.title)}</div>`;
+  }
+
+  function renderDayList(allEvents, d, isToday) {
+    const dateStr = toISO(d);
+    const evs = eventsOn(allEvents, dateStr);
+    const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    return `
+      <div class="calendar-list-day calendar-cell ${isToday ? 'today' : ''}" data-date="${dateStr}" style="cursor: pointer;">
+        <h4>${dayNames[d.getDay()]} ${d.getDate()} <span class="calendar-add-btn" style="float:right; opacity:0.5;">➕</span></h4>
+        ${evs.length === 0 ? '<div style="font-size:0.75rem; color: var(--text-muted);">Sin eventos</div>' : evs.map(ev => `
+          <div style="margin-bottom:4px;">
+            <div style="font-size:0.7rem; color: var(--text-muted);">${esc(String(ev.date).split(' ')[1] ? window.AppHelpers.formatDateTime12h(ev.date).split(' ').slice(1).join(' ') : 'Todo el día')}</div>
+            ${renderEventChip(ev)}
+          </div>`).join('')}
+      </div>`;
+  }
 
   window.AppModules.calendario = function renderCalendarioModule(container) {
     container.innerHTML = `
       <div class="fade-in">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
           <div>
-            <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--primary-dark);">Calendario Institucional Integrado</h2>
-            <p style="color: var(--text-secondary); font-size: 0.9rem;">Consolidado dinámico en tiempo real de comités, entregas de informes, vencimientos de tareas y contratos.</p>
+            <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-heading);">Calendario Institucional Integrado</h2>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Consolida agenda, órdenes de mantenimiento, fechas límite de informes y actividades del cronograma. Haga clic en un día para agregar una actividad.</p>
           </div>
           
           <div class="filter-group">
@@ -31,7 +66,7 @@ window.AppModules = window.AppModules || {};
         <div class="card">
           <div class="calendar-controls">
             <button class="btn btn-secondary" id="btn-cal-prev">◀ Anterior</button>
-            <h3 id="calendar-header-title" style="font-size: 1.2rem; font-weight: 700; color: var(--primary-dark);">--</h3>
+            <h3 id="calendar-header-title" style="font-size: 1.2rem; font-weight: 700; color: var(--text-heading);">--</h3>
             <button class="btn btn-secondary" id="btn-cal-next">Siguiente ▶</button>
           </div>
 
@@ -69,6 +104,7 @@ window.AppModules = window.AppModules || {};
 
     // Obtener la totalidad de eventos unificados desde el AppStore
     const allEvents = window.AppStore.getUnifiedCalendarEvents();
+    const todayStr = window.AppHelpers.todayISO();
     const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
     if (currentCalendarView === 'monthly') {
@@ -97,22 +133,11 @@ window.AppModules = window.AppModules || {};
       }
 
       for (let day = 1; day <= daysInMonth; day++) {
-        const isToday = day === 23 && month === 6 && year === 2026;
-        const pad = num => String(num).padStart(2, '0');
         const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`;
+        const isToday = dateStr === todayStr;
 
         // Filtrar eventos dinámicos para este día
-        const dayEvents = allEvents.filter(e => e.date === dateStr || (e.date && e.date.startsWith(dateStr)));
-
-        let eventsHTML = dayEvents.map(ev => {
-          let cssClass = 'event-informe-semanal';
-          if (ev.type === 'informe-mensual') cssClass = 'event-informe-mensual';
-          if (ev.type === 'vencimiento-contrato') cssClass = 'event-vencimiento';
-          if (ev.type === 'tarea') cssClass = 'event-fin-mes';
-          if (ev.type === 'cronograma') cssClass = 'event-informe-mensual'; // Reusing green color for Cronograma
-
-          return `<div class="calendar-event ${cssClass}" data-event-id="${ev.id}" title="${ev.title}">${ev.title}</div>`;
-        }).join('');
+        const eventsHTML = eventsOn(allEvents, dateStr).map(renderEventChip).join('');
 
         gridHTML += `
           <div class="calendar-cell ${isToday ? 'today' : ''}" data-date="${dateStr}" style="cursor: pointer; position: relative;">
@@ -129,25 +154,18 @@ window.AppModules = window.AppModules || {};
       gridWrapper.innerHTML = gridHTML;
 
     } else if (currentCalendarView === 'weekly') {
-      titleEl.textContent = `Semana del ${currentDateOffset.getDate()} de ${monthNames[currentDateOffset.getMonth()]}`;
-      gridWrapper.innerHTML = `
-        <div style="padding: 1.5rem; text-align: center; color: var(--text-secondary);">
-          <p style="font-weight: bold;">Vista Semanal Integrada</p>
-          <p>Consolidando <strong>${allEvents.length} eventos dinámicos</strong> registrados en el almacén central.</p>
-        </div>
-      `;
+      const start = new Date(currentDateOffset.getFullYear(), currentDateOffset.getMonth(), currentDateOffset.getDate() - currentDateOffset.getDay());
+      const days = Array.from({ length: 7 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
+      const end = days[6];
+      titleEl.textContent = `Semana del ${start.getDate()} de ${monthNames[start.getMonth()]} al ${end.getDate()} de ${monthNames[end.getMonth()]} ${end.getFullYear()}`;
+      gridWrapper.innerHTML = `<div class="calendar-week-grid">${days.map(d => renderDayList(allEvents, d, toISO(d) === todayStr)).join('')}</div>`;
     } else {
       titleEl.textContent = `Día: ${currentDateOffset.getDate()} de ${monthNames[currentDateOffset.getMonth()]} de ${currentDateOffset.getFullYear()}`;
-      gridWrapper.innerHTML = `
-        <div style="padding: 1.5rem; text-align: center; color: var(--text-secondary);">
-          <p style="font-weight: bold;">Vista Diaria de Compromisos</p>
-          <p>Todos los eventos provienen directamente del modelo relacional unificado.</p>
-        </div>
-      `;
+      gridWrapper.innerHTML = renderDayList(allEvents, currentDateOffset, toISO(currentDateOffset) === todayStr);
     }
 
     // Event Delegation for Adding Event on specific date
-    gridWrapper.querySelectorAll('.calendar-cell').forEach(cell => {
+    gridWrapper.querySelectorAll('.calendar-cell[data-date]').forEach(cell => {
       cell.addEventListener('click', (e) => {
         const dateStr = e.currentTarget.getAttribute('data-date');
         if (dateStr) {
@@ -191,10 +209,6 @@ window.AppModules = window.AppModules || {};
                 }
                 const modalEl = document.getElementById('generic-modal');
                 if (modalEl) modalEl.remove();
-                
-                // Re-render Calendar to reflect deletion
-                const mainContainer = document.getElementById('app-main');
-                window.AppModules.calendario(mainContainer);
               }
             });
           }
@@ -230,14 +244,14 @@ window.AppModules = window.AppModules || {};
                 </div>
                 <div class="form-group">
                   <label>Responsable</label>
-                  <input type="text" id="cro-responsible" class="form-control" value="Alexander Gómez Avendaño" required />
+                  <input type="text" id="cro-responsible" class="form-control" value="${esc(window.AppHelpers.getUserName())}" required />
                 </div>
               </div>
 
               <div class="form-grid">
                 <div class="form-group">
                   <label>Fecha Programada</label>
-                  <input type="date" id="cro-date" class="form-control" value="${dateStr}" required />
+                  <input type="date" id="cro-date" class="form-control" value="${esc(dateStr)}" required />
                 </div>
                 <div class="form-group">
                   <label>Hora Programada</label>
@@ -293,12 +307,8 @@ window.AppModules = window.AppModules || {};
       };
 
       const updated = [newItem, ...currentList];
-      window.AppStore.updateState('cronograma', updated);
       closeModal();
-      
-      // Re-render Calendar to show the new event
-      const mainContainer = document.getElementById('app-main');
-      window.AppModules.calendario(mainContainer);
+      window.AppStore.updateState('cronograma', updated);
     });
   }
 })();

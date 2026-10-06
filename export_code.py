@@ -1,40 +1,37 @@
+"""Exporta todo el código fuente a un único .txt para revisión.
+
+Usa rutas relativas a la carpeta de este script.
+Salida: Backup/CODIGO COMPLETO PARA REVISAR/CODIGO_COMPLETO_SISTEMA_GESTION.txt
+"""
 import os
+import pathlib
 
-# Destination file
-dest_dir = r"C:\Users\SuperUsuario\.gemini\antigravity\scratch\sistema_gestion_contrato\Backup\CODIGO COMPLETO PARA REVISAR"
-dest_file = os.path.join(dest_dir, "CODIGO_COMPLETO_SISTEMA_GESTION.txt")
+BASE_DIR = pathlib.Path(__file__).resolve().parent
+DEST_DIR = BASE_DIR / 'Backup' / 'CODIGO COMPLETO PARA REVISAR'
+DEST_FILE = DEST_DIR / 'CODIGO_COMPLETO_SISTEMA_GESTION.txt'
 
-# Directories and extensions to include
-base_dir = r"C:\Users\SuperUsuario\.gemini\antigravity\scratch\sistema_gestion_contrato"
-valid_extensions = ['.html', '.css', '.js', '.py']
+VALID_EXTENSIONS = ('.html', '.css', '.js', '.py', '.bat', '.md')
+EXCLUDE_DIRS = {'.git', 'Backup', 'img', 'libs', 'Manual web', 'FentesActivos', 'HOJAS DE VIDA SIF 621', '__pycache__'}
+EXCLUDE_FILES = {'GESTION MAQUINARIA 2026.html', 'index_bundle.html'}
 
-# Specific files or folders to ignore
-exclude_dirs = ['.git', 'Backup', 'img', '.tempmediaStorage', '.user_uploaded', 'Manual web', 'FentesActivos', 'HOJAS DE VIDA SIF 621']
-exclude_files = ['GESTION MAQUINARIA 2026.html', 'index_bundle.html'] # Bundled files are just concatenations
 
-with open(dest_file, 'w', encoding='utf-8') as outfile:
-    outfile.write("="*80 + "\n")
-    outfile.write("CÓDIGO FUENTE COMPLETO - SISTEMA DE GESTIÓN DEL CONTRATO\n")
-    outfile.write("="*80 + "\n\n")
-
-    for root, dirs, files in os.walk(base_dir):
-        # Filter out excluded directories
-        dirs[:] = [d for d in dirs if d not in exclude_dirs]
-
-        for file in files:
-            # Check extensions and excluded files
-            if any(file.endswith(ext) for ext in valid_extensions) and file not in exclude_files:
-                filepath = os.path.join(root, file)
-                rel_path = os.path.relpath(filepath, base_dir)
-
-                outfile.write("\n" + "="*80 + "\n")
-                outfile.write(f"ARCHIVO: {rel_path}\n")
-                outfile.write("="*80 + "\n\n")
-
+def main():
+    DEST_DIR.mkdir(parents=True, exist_ok=True)
+    with DEST_FILE.open('w', encoding='utf-8') as out:
+        out.write('=' * 80 + '\nCÓDIGO FUENTE COMPLETO - SISTEMA DE GESTIÓN DEL CONTRATO\n' + '=' * 80 + '\n\n')
+        for root, dirs, files in os.walk(BASE_DIR):
+            dirs[:] = sorted(d for d in dirs if d not in EXCLUDE_DIRS)
+            for name in sorted(files):
+                if not name.endswith(VALID_EXTENSIONS) or name in EXCLUDE_FILES:
+                    continue
+                path = pathlib.Path(root) / name
+                out.write('\n' + '=' * 80 + f'\nARCHIVO: {path.relative_to(BASE_DIR)}\n' + '=' * 80 + '\n\n')
                 try:
-                    with open(filepath, 'r', encoding='utf-8') as infile:
-                        outfile.write(infile.read() + "\n")
-                except Exception as e:
-                    outfile.write(f"[Error leyendo el archivo: {e}]\n")
+                    out.write(path.read_text(encoding='utf-8') + '\n')
+                except (OSError, UnicodeDecodeError) as err:
+                    out.write(f'[Error leyendo el archivo: {err}]\n')
+    print(f'Código exportado en: {DEST_FILE}')
 
-print(f"Código completo guardado exitosamente en: {dest_file}")
+
+if __name__ == '__main__':
+    main()

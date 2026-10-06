@@ -118,7 +118,7 @@ window.AppModules.inicio = function renderInicioModule(container) {
       </div>
 
       <!-- Grid de Paneles Integrados (Mantenimientos e Informes) -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem;">
+      <div class="home-panels-grid">
         
         <!-- Panel 1: Órdenes de Mantenimiento Pendientes -->
         <div class="card">
@@ -132,10 +132,10 @@ window.AppModules.inicio = function renderInicioModule(container) {
               <div style="padding: 0.75rem; background: var(--bg-light); border-radius: var(--radius-md); border-left: 4px solid ${t.tipo === 'Correctivo' ? 'var(--status-danger)' : 'var(--status-warning)'};">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                   <strong style="font-size: 0.9rem;">${window.AppHelpers.escapeHTML(t.descripcion)}</strong>
-                  <span class="badge ${t.tipo === 'Correctivo' ? 'badge-danger' : 'badge-warning'}">${t.tipo}</span>
+                  <span class="badge ${t.tipo === 'Correctivo' ? 'badge-danger' : 'badge-warning'}">${window.AppHelpers.escapeHTML(t.tipo)}</span>
                 </div>
                 <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                  Responsable: ${window.AppHelpers.escapeHTML(t.responsable)} | Fecha: <strong>${t.fecha}</strong>
+                  Responsable: ${window.AppHelpers.escapeHTML(t.responsable)} | Fecha: <strong>${window.AppHelpers.escapeHTML(t.fecha)}</strong>
                 </div>
                 <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
                   ${t.equipoId ? window.AppComponents.renderEntityLink('equipment', t.equipoId) : ''}
@@ -165,10 +165,10 @@ window.AppModules.inicio = function renderInicioModule(container) {
                 ${pendingReports.map(inf => `
                   <tr>
                     <td><strong>${window.AppHelpers.escapeHTML(inf.titulo)}</strong></td>
-                    <td>📅 ${inf.fechaLimite}</td>
+                    <td>📅 ${window.AppHelpers.escapeHTML(inf.fechaLimite)}</td>
                     <td>
                       <span class="badge ${inf.status === 'En Revisión' ? 'badge-warning' : 'badge-danger'}">
-                        ${inf.status}
+                        ${window.AppHelpers.escapeHTML(inf.status)}
                       </span>
                     </td>
                   </tr>

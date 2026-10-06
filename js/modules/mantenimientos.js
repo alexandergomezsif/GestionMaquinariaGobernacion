@@ -14,7 +14,7 @@ window.AppModules.mantenimientos = function renderMantenimientosModule(container
     <div class="fade-in">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
         <div>
-          <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--primary-dark);">Gestión de Mantenimientos (Órdenes de Trabajo)</h2>
+          <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-heading);">Gestión de Mantenimientos (Órdenes de Trabajo)</h2>
           <p style="color: var(--text-secondary); font-size: 0.9rem;">Planificación y control de mantenimientos preventivos y correctivos de la maquinaria.</p>
         </div>
         <button class="btn btn-primary" id="btn-add-mt">
@@ -84,7 +84,6 @@ window.AppModules.mantenimientos = function renderMantenimientosModule(container
       if (confirm('¿Está seguro de eliminar esta orden de trabajo?')) {
         const updated = mts.filter(t => t.id !== id);
         window.AppStore.updateState('mantenimientos', updated);
-        renderMantenimientosModule(container);
       }
     });
   });
@@ -105,7 +104,7 @@ window.AppModules.mantenimientos = function renderMantenimientosModule(container
                 <select id="mt-equipo" class="form-control" required>
                   <option value="">Seleccione un equipo...</option>
                   ${inventory.map(eq => `
-                    <option value="${eq.id}" ${isEdit && itemToEdit.equipoId === eq.id ? 'selected' : ''}>
+                    <option value="${window.AppHelpers.escapeHTML(eq.id)}" ${isEdit && itemToEdit.equipoId === eq.id ? 'selected' : ''}>
                       ${window.AppHelpers.escapeHTML(eq.equipment)} (${window.AppHelpers.escapeHTML(eq.plate || eq.serial)})
                     </option>
                   `).join('')}
@@ -122,7 +121,7 @@ window.AppModules.mantenimientos = function renderMantenimientosModule(container
                 </div>
                 <div class="form-group">
                   <label>Fecha Programada</label>
-                  <input type="date" id="mt-fecha" class="form-control" value="${isEdit ? itemToEdit.fecha : window.AppHelpers.getFormattedCurrentDate().split('/').reverse().join('-')}" required />
+                  <input type="date" id="mt-fecha" class="form-control" value="${isEdit ? window.AppHelpers.escapeHTML(itemToEdit.fecha) : window.AppHelpers.todayISO()}" required />
                 </div>
               </div>
 
@@ -170,6 +169,7 @@ window.AppModules.mantenimientos = function renderMantenimientosModule(container
       const currentMts = state.mantenimientos || [];
 
       const newItem = {
+        ...(isEdit ? itemToEdit : {}),
         id: isEdit ? itemToEdit.id : window.AppHelpers.generateUUID(),
         equipoId: document.getElementById('mt-equipo').value,
         tipo: document.getElementById('mt-tipo').value,
@@ -186,10 +186,8 @@ window.AppModules.mantenimientos = function renderMantenimientosModule(container
         updated = [newItem, ...currentMts];
       }
 
-      window.AppStore.updateState('mantenimientos', updated);
       closeModal();
-      const mainContainer = document.getElementById('app-main');
-      window.AppModules.mantenimientos(mainContainer);
+      window.AppStore.updateState('mantenimientos', updated);
     });
   }
 };

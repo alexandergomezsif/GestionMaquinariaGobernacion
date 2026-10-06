@@ -1,11 +1,9 @@
 @echo off
 chcp 65001 > nul
 title Abrir Sistema de Gestión del Contrato
-echo Iniciando Sistema de Gestión del Contrato 2026...
 cd /d "%~dp0"
-if exist "GESTION MAQUINARIA 2026.html" (
-    start "" "GESTION MAQUINARIA 2026.html"
-) else (
-    start "" "index.html"
-)
+echo Iniciando Sistema de Gestion del Contrato...
+rem Se abre siempre la version de codigo fuente (index.html), que nunca queda desactualizada.
+rem El archivo "GESTION MAQUINARIA 2026.html" es solo una copia portable generada con bundle.py.
+start "" "index.html"
 exit

@@ -8,16 +8,16 @@ window.AppModules = window.AppModules || {};
 window.AppModules.agenda = function renderAgendaModule(container) {
   const state = window.AppStore.getState();
   const todayStr = window.AppHelpers.getFormattedCurrentDate(); // just for display
-  const isoDate = new Date().toISOString().split('T')[0];
+  const isoDate = window.AppHelpers.todayISO();
 
   // Filtrar solo los de hoy y los próximos
-  const agendaList = (state.agenda || []).filter(a => a.fecha >= isoDate).sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const agendaList = (state.agenda || []).filter(a => (a.fecha || '') >= isoDate).sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''));
 
   container.innerHTML = `
     <div class="fade-in">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
         <div>
-          <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--primary-dark);">Agenda y Próximos Eventos</h2>
+          <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-heading);">Agenda y Próximos Eventos</h2>
           <p style="color: var(--text-secondary); font-size: 0.9rem;">Eventos programados a partir de hoy: <strong>${todayStr}</strong></p>
         </div>
         <button class="btn btn-primary" id="btn-add-agenda">
@@ -40,7 +40,7 @@ window.AppModules.agenda = function renderAgendaModule(container) {
             </thead>
             <tbody>
               ${agendaList.length === 0 ? `
-                <tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 2rem;">No hay eventos agendados para hoy. ¡Tienes el día libre!</td></tr>
+                <tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 2rem;">No hay eventos agendados desde hoy en adelante.</td></tr>
               ` : agendaList.map(item => `
                 <tr style="${item.status === 'Completado' ? 'opacity: 0.6;' : ''}">
                   <td><strong>${window.AppHelpers.formatDateTime12h(item.fecha)}</strong></td>
@@ -53,7 +53,7 @@ window.AppModules.agenda = function renderAgendaModule(container) {
                   </td>
                   <td>${window.AppHelpers.escapeHTML(item.notes || '-')}</td>
                   <td style="text-align: right; display: flex; justify-content: flex-end; gap: 0.5rem;">
-                    <button class="btn btn-info btn-icon btn-view-agenda" data-id="${item.id}" title="Ver Detalles">👁️</button>
+                    <button class="btn btn-info btn-icon btn-view-agenda" data-id="${window.AppHelpers.escapeHTML(item.id)}" title="Ver Detalles">👁️</button>
                     ${item.status !== 'Completado' ? `
                       <button class="btn btn-success btn-icon btn-complete-agenda" data-id="${item.id}" title="Marcar Completado">✅</button>
                     ` : `
@@ -93,7 +93,6 @@ window.AppModules.agenda = function renderAgendaModule(container) {
       if (confirm('¿Está seguro de eliminar esta cita de la agenda?')) {
         const updated = (window.AppStore.getState().agenda || []).filter(a => a.id !== id);
         window.AppStore.updateState('agenda', updated);
-        renderAgendaModule(container);
       }
     });
   });
@@ -120,17 +119,16 @@ window.AppModules.agenda = function renderAgendaModule(container) {
     const agenda = window.AppStore.getState().agenda || [];
     const updated = agenda.map(a => a.id === id ? { ...a, status: newStatus } : a);
     window.AppStore.updateState('agenda', updated);
-    renderAgendaModule(container);
   }
 };
 
 function openAgendaModal() {
-  const isoDate = new Date().toISOString().split('T')[0];
+  const isoDate = window.AppHelpers.todayISO();
   const modalHTML = `
     <div class="modal-overlay active" id="modal-agenda">
       <div class="modal-content">
         <div class="modal-header">
-          <div class="modal-title">➕ Nuevo Evento para Hoy</div>
+          <div class="modal-title">➕ Nuevo Evento de Agenda</div>
           <button class="modal-close" id="modal-close-btn">&times;</button>
         </div>
         <form id="form-agenda">
@@ -149,6 +147,11 @@ function openAgendaModal() {
                   <option value="Financiero">Revisión Financiera</option>
                   <option value="Institucional">Institucional</option>
                 </select>
+              </div>
+
+              <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" id="ag-fecha" class="form-control" value="${isoDate}" min="${isoDate}" required />
               </div>
 
               <div class="form-group">
@@ -190,16 +193,14 @@ function openAgendaModal() {
       id: window.AppHelpers.generateUUID(),
       titulo: document.getElementById('ag-titulo').value.trim(),
       categoria: document.getElementById('ag-categoria').value,
-      fecha: `${isoDate} ${hora}`,
+      fecha: `${document.getElementById('ag-fecha').value || isoDate} ${hora}`,
       priority: 'Media', // Default
       status: 'Pendiente',
       notes: document.getElementById('ag-notes').value.trim()
     };
 
     const updated = [newItem, ...currentAgenda];
-    window.AppStore.updateState('agenda', updated);
     closeModal();
-    const mainContainer = document.getElementById('app-main');
-    window.AppModules.agenda(mainContainer);
+    window.AppStore.updateState('agenda', updated);
   });
 }

@@ -38,7 +38,7 @@
       <div class="header-controls">
         <!-- Global Search Bar -->
         <!-- Save Button -->
-        <button class="header-btn" id="btn-export-backup" title="Guardar Cambios (Descargar JSON)" onclick="window.AppStore.exportJSONBackup()" style="display:flex; align-items:center; justify-content:center; font-size:1.5rem; padding: 5px 12px; border-radius: 6px; margin-right: 10px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.3); cursor: pointer; transition: transform 0.2s;">
+        <button class="header-btn" id="btn-export-backup" title="Exportar respaldo JSON (los cambios ya se guardan automáticamente en este navegador)" style="display:flex; align-items:center; justify-content:center; font-size:1.5rem; padding: 5px 12px; border-radius: 6px; margin-right: 10px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.3); cursor: pointer; transition: transform 0.2s;">
           💾
         </button>
 
@@ -150,7 +150,7 @@
     <div style="font-weight: 700; font-size: 1rem; color: var(--primary-dark); margin-bottom: 1rem; border-bottom: 1px solid var(--card-border); padding-bottom: 0.5rem;">
       🔔 Alertas y Notificaciones Rápidas
     </div>
-    <div id="drawer-alerts-content" style="flex-grow: 1; overflow-y. auto;">
+    <div id="drawer-alerts-content" style="flex-grow: 1; overflow-y: auto;">
       <!-- Alerts Inserted Dynamically -->
     </div>
   </div>
@@ -159,7 +159,6 @@
   <script src="js/utils/helpers.js"></script>
   <script src="js/utils/canvasCharts.js"></script>
   <script src="js/utils/alerts.js"></script>
-  <script src="js/utils/search.js"></script>
 
   <!-- Load Event Bus and Components -->
   <script src="js/eventBus.js"></script>
@@ -172,7 +171,7 @@
       <!-- Top Bar -->
       <div style="background: var(--primary-dark); color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; z-index: 10;">
         <h2 style="margin: 0; font-size: 1.2rem;">
-          <i class="ti ti-map-2"></i> Red Vial - Antioquia
+          🗺️ Red Vial - Antioquia
         </h2>
         <span class="close" id="map-modal-close" style="color: white; top: auto; right: auto; position: static; margin-left: 15px;">&times;</span>
       </div>
@@ -184,7 +183,7 @@
       <div class="map-floating-panel">
         <div class="map-search-box">
           <input type="text" id="map-search-input" placeholder="Buscar vía por Nombre o Código..." />
-          <button id="map-search-btn" class="btn btn-primary"><i class="ti ti-search"></i></button>
+          <button id="map-search-btn" class="btn btn-primary">🔍</button>
         </div>
         
         <div class="map-layer-controls">
@@ -205,7 +204,7 @@
       </div>
       
       <div id="map-loading" class="map-loading" style="display: none;">
-        <i class="ti ti-loader ti-spin"></i> Cargando datos geográficos...
+        ⏳ Cargando datos geográficos...
       </div>
     </div>
   </div>
@@ -220,7 +219,13 @@
   <script src="js/modules/mantenimientos.js"></script>
   <script src="js/modules/inventario.js"></script>
   <script src="js/modules/informes.js"></script>
-  <script src="js/modules/frentes.js"></script>
+  <script src="js/modules/frentes/comun.js"></script>
+  <script src="js/modules/frentes/tarjeta.js"></script>
+  <script src="js/modules/frentes/avanceSemanal.js"></script>
+  <script src="js/modules/frentes/informePDF.js"></script>
+  <script src="js/modules/frentes/mapa.js"></script>
+  <script src="js/modules/frentes/importador.js"></script>
+  <script src="js/modules/frentes/vista.js"></script>
 
   <script src="js/modules/obligaciones.js"></script>
   <script src="js/modules/baseDatos.js"></script>

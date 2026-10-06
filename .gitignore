@@ -1,7 +1,21 @@
+# Carpetas con datos operativos o documentos (no versionar)
 Backup/
 Manual web/
 FentesActivos/
 HOJAS DE VIDA SIF 621/
+
+# Archivos generados por bundle.py (se regeneran; no versionar)
+GESTION MAQUINARIA 2026.html
+index_bundle.html
+
+# Firma escaneada: nunca en el repositorio (el repo es público)
+img/firma*
+
+# Respaldos de datos exportados desde la app
+Respaldo_Operativo_*.json
+frentes_activos*.json
+
+# Varios
 *.zip
 __pycache__/
 *.pyc
